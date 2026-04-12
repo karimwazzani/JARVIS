@@ -32,17 +32,30 @@ def get_app():
             raise e
     return application
 
+async def bot_init():
+    app_instance = get_app()
+    if not app_instance.initialized:
+        await app_instance.initialize()
+    if not app_instance.post_init:
+        # Algunos motores requieren un post-init para handlers
+        pass 
+    return app_instance
+
 async def handle_update(update_json):
     """Procesa la actualización recibida de Telegram."""
-    app_instance = get_app()
-    async with app_instance:
-        update = Update.de_json(data=update_json, bot=app_instance.bot)
-        await app_instance.process_update(update)
+    app_instance = await bot_init()
+    update = Update.de_json(data=update_json, bot=app_instance.bot)
+    await app_instance.process_update(update)
 
 @app.route('/', methods=['GET', 'POST'])
 def webhook():
     if request.method == 'POST':
         update_json = request.get_json(force=True)
-        asyncio.run(handle_update(update_json))
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(handle_update(update_json))
+        except Exception as e:
+            print(f"Error procesando update: {e}")
         return 'OK', 200
     return '<h1>JARVIS está en línea</h1><p>Sistema en espera de mensajes.</p>', 200
