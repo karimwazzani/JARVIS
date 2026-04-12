@@ -45,33 +45,34 @@ async def bot_init():
 
 async def handle_update(update_json):
     """Procesa la actualización recibida de Telegram."""
-    print(f"DEBUG: Nuevo update detectado ID {update_json.get('update_id')}", flush=True)
+    print(f"DEBUG: >>> Recibido Update {update_json.get('update_id')}", flush=True)
     
-    # --- PRUEBA DE CONECTIVIDAD DIRECTA ---
-    message = update_json.get('message', {})
-    text = message.get('text', '').lower()
-    if text == 'ping':
-        print("DEBUG: Mensaje 'ping' detectado. Respondiendo directo...", flush=True)
+    # --- PING TEST ---
+    msg_obj = update_json.get('message', {})
+    if msg_obj.get('text', '').lower() == 'ping':
         from telegram import Bot
         bot = Bot(token=os.getenv("TELEGRAM_BOT_TOKEN"))
-        await bot.send_message(chat_id=message['chat']['id'], text="PONG! 🚀 (Conectividad Vercel-Telegram OK)")
-        print("DEBUG: PONG enviado.", flush=True)
+        await bot.send_message(chat_id=msg_obj['chat']['id'], text="PONG! 🚀")
         return
 
-    print("DEBUG: Entrando a inicialización pesada...", flush=True)
+    print("DEBUG: 1. Llamando a bot_init...", flush=True)
     app_instance = await bot_init()
+    print("DEBUG: 2. Bot inicializado. Convirtiendo update...", flush=True)
     update = Update.de_json(data=update_json, bot=app_instance.bot)
+    print("DEBUG: 3. Ejecutando process_update...", flush=True)
     await app_instance.process_update(update)
-    print("DEBUG: Update procesado con éxito", flush=True)
+    print("DEBUG: 4. Todo OK.", flush=True)
 
 @app.route('/', methods=['GET', 'POST'])
 def webhook():
     if request.method == 'POST':
         update_json = request.get_json(force=True)
         try:
-            # Usamos asyncio.run para asegurar que el loop se cierre correctamente en cada lambda
+            print("DEBUG: --- INICIO PROCESAMIENTO ---", flush=True)
             asyncio.run(handle_update(update_json))
+            print("DEBUG: --- FIN PROCESAMIENTO ---", flush=True)
         except Exception as e:
-            print(f"❌ Error procesando update: {e}", flush=True)
+            import traceback
+            print(f"❌ ERROR EN WEBHOOK:\n{traceback.format_exc()}", flush=True)
         return 'OK', 200
-    return '<h1>JARVIS está en línea</h1><p>Sistema en espera de mensajes.</p>', 200
+    return '<h1>JARVIS Online</h1>', 200
