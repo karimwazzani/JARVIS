@@ -9,9 +9,14 @@ load_dotenv()
 # Prioridad de variables de entorno (Vercel usa POSTGRES_URL, otros usan DATABASE_URL)
 DATABASE_URL = os.getenv("POSTGRES_URL") or os.getenv("DATABASE_URL") or "sqlite:///jarvis_local.db"
 
-# Corrección de protocolo para SQLAlchemy (Postgres en la nube suele usar postgres://)
+# Corrección de protocolo y SSL para SQLAlchemy (Postgres en la nube suele usar postgres://)
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+# Forzar SSL para Supabase/Neon si no está presente
+if "postgresql" in DATABASE_URL and "sslmode" not in DATABASE_URL:
+    sep = "&" if "?" in DATABASE_URL else "?"
+    DATABASE_URL += f"{sep}sslmode=require"
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
