@@ -45,7 +45,20 @@ async def bot_init():
 
 async def handle_update(update_json):
     """Procesa la actualización recibida de Telegram."""
-    print(f"DEBUG: Procesando update tipo {update_json.get('update_id')}", flush=True)
+    print(f"DEBUG: Nuevo update detectado ID {update_json.get('update_id')}", flush=True)
+    
+    # --- PRUEBA DE CONECTIVIDAD DIRECTA ---
+    message = update_json.get('message', {})
+    text = message.get('text', '').lower()
+    if text == 'ping':
+        print("DEBUG: Mensaje 'ping' detectado. Respondiendo directo...", flush=True)
+        from telegram import Bot
+        bot = Bot(token=os.getenv("TELEGRAM_BOT_TOKEN"))
+        await bot.send_message(chat_id=message['chat']['id'], text="PONG! 🚀 (Conectividad Vercel-Telegram OK)")
+        print("DEBUG: PONG enviado.", flush=True)
+        return
+
+    print("DEBUG: Entrando a inicialización pesada...", flush=True)
     app_instance = await bot_init()
     update = Update.de_json(data=update_json, bot=app_instance.bot)
     await app_instance.process_update(update)
