@@ -13,19 +13,23 @@ from src.database import init_db
 
 app = Flask(__name__)
 
-# Inicializar base de datos y bot
-try:
-    init_db()
-    application = create_app()
-except Exception as e:
-    print(f"Error al iniciar app: {e}")
-    application = None
+# Inicialización diferida (Lazy Loading)
+application = None
+
+def get_app():
+    global application
+    if application is None:
+        print("Cargando cerebro de JARVIS...")
+        init_db()
+        application = create_app()
+    return application
 
 async def handle_update(update_json):
     """Procesa la actualización recibida de Telegram."""
-    async with application:
-        update = Update.de_json(data=update_json, bot=application.bot)
-        await application.process_update(update)
+    app_instance = get_app()
+    async with app_instance:
+        update = Update.de_json(data=update_json, bot=app_instance.bot)
+        await app_instance.process_update(update)
 
 @app.route('/', methods=['GET', 'POST'])
 def webhook():
@@ -33,4 +37,4 @@ def webhook():
         update_json = request.get_json(force=True)
         asyncio.run(handle_update(update_json))
         return 'OK', 200
-    return '<h1>JARVIS está en línea</h1><p>Memoria y Cerebro activos en la nube.</p>', 200
+    return '<h1>JARVIS está en línea</h1><p>Sistema en espera de mensajes.</p>', 200
