@@ -6,11 +6,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Prioridad: Variable de entorno DATABASE_URL (Postgres), si no existe, usa SQLite local.
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///jarvis_local.db")
+# Prioridad de variables de entorno (Vercel usa POSTGRES_URL, otros usan DATABASE_URL)
+DATABASE_URL = os.getenv("POSTGRES_URL") or os.getenv("DATABASE_URL") or "sqlite:///jarvis_local.db"
 
-# Si el URL empieza con postgresql://, es Postgres. SQLAlchemy requiere 'postgresql+psycopg2://' a veces o 'postgresql://' según versión.
-# En Vercel/Render, suele venir como postgresql://
+# Corrección de protocolo para SQLAlchemy (Postgres en la nube suele usar postgres://)
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
