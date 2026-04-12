@@ -13,15 +13,23 @@ from src.database import init_db
 
 app = Flask(__name__)
 
-# Inicialización diferida (Lazy Loading)
+# Inicialización diferida (Lazy Loading) con Logs Extremos
 application = None
 
 def get_app():
     global application
     if application is None:
-        print("Cargando cerebro de JARVIS...")
-        init_db()
-        application = create_app()
+        import traceback
+        try:
+            print("--- INICIANDO CEREBRO DE JARVIS ---")
+            init_db()
+            print("Base de datos conectada correctamente.")
+            application = create_app()
+            print("Cerebro y Bot inicializados.")
+        except Exception as e:
+            error_msg = f"❌ ERROR CRÍTICO EN ARRANQUE: {str(e)}\n{traceback.format_exc()}"
+            print(error_msg)
+            raise e
     return application
 
 async def handle_update(update_json):
