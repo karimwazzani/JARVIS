@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from telegram.ext import ContextTypes
 from openai import OpenAI
 from dotenv import load_dotenv
-from database import SessionLocal, LogEvento, PropuestaAutomatizacion
+from src.database import SessionLocal, LogEvento, PropuestaAutomatizacion
 
 async def run_learning_engine(context: ContextTypes.DEFAULT_TYPE):
     """

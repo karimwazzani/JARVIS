@@ -2,7 +2,7 @@ import matplotlib
 matplotlib.use('Agg') # Requerido para no usar interfaz gráfica
 import matplotlib.pyplot as plt
 import os
-from database import SessionLocal, Transaccion
+from src.database import SessionLocal, Transaccion
 from sqlalchemy import func
 
 def generar_grafico_balance(chat_id: str) -> str:

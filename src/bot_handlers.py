@@ -1,8 +1,8 @@
 import os
 from telegram import Update
 from telegram.ext import ContextTypes
-from ai_agent import get_ai_response, transcribir_audio
-from database import SessionLocal, Transaccion, Recordatorio, SensorAlert, Tarea, PreferenciaUsuario, HabitoYPatron, LogEvento, PropuestaAutomatizacion
+from src.ai_agent import get_ai_response, transcribir_audio
+from src.database import SessionLocal, Transaccion, Recordatorio, SensorAlert, Tarea, PreferenciaUsuario, HabitoYPatron, LogEvento, PropuestaAutomatizacion
 from datetime import datetime
 from sqlalchemy import func
 

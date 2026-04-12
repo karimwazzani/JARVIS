@@ -3,9 +3,9 @@ import json
 from datetime import datetime
 from openai import OpenAI
 from dotenv import load_dotenv
-from database import SessionLocal, Transaccion, Recordatorio, Memoria, Tarea, PreferenciaUsuario, HabitoYPatron, PropuestaAutomatizacion
+from src.database import SessionLocal, Transaccion, Recordatorio, Memoria, Tarea, PreferenciaUsuario, HabitoYPatron, PropuestaAutomatizacion
 from sqlalchemy import func
-from multimedia import generar_grafico_balance, spotify_control
+from src.multimedia import generar_grafico_balance, spotify_control
 
 tools = [
      {
