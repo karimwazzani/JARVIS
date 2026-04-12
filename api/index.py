@@ -13,9 +13,16 @@ from src.database import init_db
 
 app = Flask(__name__)
 
-# Inicializar base de datos y bot
-init_db()
-application = create_app()
+# Inicializar base de datos y bot con manejo de errores para debug en Vercel
+try:
+    print("Iniciando JARVIS en la nube...")
+    init_db()
+    print("DB inicializada OK.")
+    application = create_app()
+    print("Bot instanciado OK.")
+except Exception as e:
+    print(f"CRITICAL ERROR DURANTE EL INICIO: {e}")
+    application = None
 
 async def handle_update(update_json):
     """Procesa la actualización recibida de Telegram."""
