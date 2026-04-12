@@ -27,8 +27,11 @@ def get_app():
             application = create_app()
             print("Cerebro y Bot inicializados.")
         except Exception as e:
-            error_msg = f"❌ ERROR CRÍTICO EN ARRANQUE: {str(e)}\n{traceback.format_exc()}"
-            print(error_msg)
+            import traceback
+            error_details = traceback.format_exc()
+            print(f"--- ERROR DETALLADO ---")
+            print(error_details)
+            print(f"--- FIN ERROR ---")
             raise e
     return application
 
@@ -43,19 +46,20 @@ async def bot_init():
 
 async def handle_update(update_json):
     """Procesa la actualización recibida de Telegram."""
+    print(f"DEBUG: Procesando update tipo {update_json.get('update_id')}", flush=True)
     app_instance = await bot_init()
     update = Update.de_json(data=update_json, bot=app_instance.bot)
     await app_instance.process_update(update)
+    print("DEBUG: Update procesado con éxito", flush=True)
 
 @app.route('/', methods=['GET', 'POST'])
 def webhook():
     if request.method == 'POST':
         update_json = request.get_json(force=True)
         try:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            loop.run_until_complete(handle_update(update_json))
+            # Usamos asyncio.run para asegurar que el loop se cierre correctamente en cada lambda
+            asyncio.run(handle_update(update_json))
         except Exception as e:
-            print(f"Error procesando update: {e}")
+            print(f"❌ Error procesando update: {e}", flush=True)
         return 'OK', 200
     return '<h1>JARVIS está en línea</h1><p>Sistema en espera de mensajes.</p>', 200

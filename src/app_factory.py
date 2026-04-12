@@ -28,6 +28,12 @@ def create_app():
     return application
 
 def setup_jobs(application):
+    # Desactivamos el Job Queue en Vercel porque las lambdas mueren rápido
+    # y esto solo retrasa el tiempo de respuesta
+    if os.getenv("VERCEL"):
+        print("Vercel detectado: Saltando Job Queue")
+        return
+        
     # Tarea en segundo plano para verificar recordatorios cada 30 segundos
     application.job_queue.run_repeating(check_reminders, interval=30, first=5)
     
