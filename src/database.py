@@ -19,7 +19,11 @@ if "postgresql" in DATABASE_URL and "sslmode" not in DATABASE_URL:
     sep = "&" if "?" in DATABASE_URL else "?"
     DATABASE_URL += f"{sep}sslmode=require"
 
-engine = create_engine(DATABASE_URL)
+# Timeout de conexión para evitar bloqueos en Vercel
+engine = create_engine(
+    DATABASE_URL,
+    connect_args={"connect_timeout": 5} if "postgresql" in DATABASE_URL else {}
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -104,4 +108,6 @@ class PropuestaAutomatizacion(Base):
 
 def init_db():
     # Crea las tablas si no existen
+    print("DEBUG: Iniciando creación de tablas...", flush=True)
     Base.metadata.create_all(bind=engine)
+    print("DEBUG: Tablas creadas/verificadas.", flush=True)
