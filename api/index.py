@@ -68,9 +68,27 @@ def webhook():
     if request.method == 'POST':
         update_json = request.get_json(force=True)
         try:
-            print("DEBUG: --- INICIO PROCESAMIENTO ---", flush=True)
-            asyncio.run(handle_update(update_json))
-            print("DEBUG: --- FIN PROCESAMIENTO ---", flush=True)
+            print(f"DEBUG: >>> Recibido Update {update_json.get('update_id')}", flush=True)
+            
+            # Prueba de ping rápida (Síncrona/Directa)
+            msg_obj = update_json.get('message', {})
+            if msg_obj.get('text', '').lower() == 'ping':
+                print("DEBUG: Respondiendo PONG...", flush=True)
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                from telegram import Bot
+                bot = Bot(token=os.getenv("TELEGRAM_BOT_TOKEN"))
+                loop.run_until_complete(bot.send_message(chat_id=msg_obj['chat']['id'], text="PONG! 🚀"))
+                loop.close()
+                return 'OK', 200
+
+            # Procesamiento pesado
+            print("DEBUG: Iniciando procesamiento pesado...", flush=True)
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(handle_update(update_json))
+            loop.close()
+            print("DEBUG: --- FIN PROCESAMIENTO OK ---", flush=True)
         except Exception as e:
             import traceback
             print(f"❌ ERROR EN WEBHOOK:\n{traceback.format_exc()}", flush=True)
