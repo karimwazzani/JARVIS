@@ -2,3 +2,10 @@ python-telegram-bot[job-queue]==21.1.1
 openai>=1.20.0
 python-dotenv==1.0.1
 SQLAlchemy==2.0.28
+psycopg2-binary==2.9.9
+matplotlib==3.8.3
+pyserial==3.5
+pytapo==3.3.17
+opencv-python
+flask==3.0.2
+gunicorn==21.2.0

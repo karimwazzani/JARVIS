@@ -1,11 +1,20 @@
+import os
 from datetime import datetime
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Boolean
 from sqlalchemy.orm import declarative_base, sessionmaker
+from dotenv import load_dotenv
 
-# Base de datos local SQLite temporal para desarrollo
-DATABASE_URL = "sqlite:///jarvis_local.db"
+load_dotenv()
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+# Prioridad: Variable de entorno DATABASE_URL (Postgres), si no existe, usa SQLite local.
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///jarvis_local.db")
+
+# Si el URL empieza con postgresql://, es Postgres. SQLAlchemy requiere 'postgresql+psycopg2://' a veces o 'postgresql://' según versión.
+# En Vercel/Render, suele venir como postgresql://
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -25,6 +34,14 @@ class Recordatorio(Base):
     fecha_aviso = Column(DateTime)
     enviado = Column(Boolean, default=False)
 
+class Memoria(Base):
+    """Guarda contexto persistente, hechos, rutinas o cualquier dato importante categorizado."""
+    __tablename__ = "memorias"
+    id = Column(Integer, primary_key=True, index=True)
+    categoria = Column(String)
+    dato = Column(String)
+    fecha_registro = Column(DateTime, default=datetime.now)
+
 class SensorAlert(Base):
     __tablename__ = "sensor_alertas"
     id = Column(Integer, primary_key=True, index=True)
@@ -32,6 +49,53 @@ class SensorAlert(Base):
     mensaje = Column(String)   # Ej: 'Movimiento Detectado'
     fecha = Column(DateTime, default=datetime.now)
     leido = Column(Boolean, default=False)
+
+class Tarea(Base):
+    """Guarda tareas específicas y seguimiento de actividades."""
+    __tablename__ = "tareas"
+    id = Column(Integer, primary_key=True, index=True)
+    chat_id = Column(String, index=True)
+    titulo = Column(String)
+    descripcion = Column(String, nullable=True)
+    estado = Column(String, default="pendiente") # "pendiente", "en_progreso", "completada"
+    fecha_creacion = Column(DateTime, default=datetime.now)
+    fecha_completada = Column(DateTime, nullable=True)
+
+class PreferenciaUsuario(Base):
+    """Guarda configuración personalizada de alertas, prioridades y modos."""
+    __tablename__ = "preferencias_usuario"
+    id = Column(Integer, primary_key=True, index=True)
+    chat_id = Column(String, index=True)
+    clave = Column(String, index=True) # Ej: "modo_noche_inicio"
+    valor = Column(String)             # Ej: "22:00"
+    fecha_actualizacion = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+class HabitoYPatron(Base):
+    """Registro de comportamientos detectados por JARVIS."""
+    __tablename__ = "habitos_y_patrones"
+    id = Column(Integer, primary_key=True, index=True)
+    chat_id = Column(String, index=True)
+    descripcion = Column(String) # Ej: "Suele pedir resumen financiero los viernes"
+    confianza = Column(Float, default=1.0) # Nivel de certeza de JARVIS
+    fecha_deteccion = Column(DateTime, default=datetime.now)
+
+class LogEvento(Base):
+    """Telemetría para análisis predictivo (qué hace el usuario y cuándo)."""
+    __tablename__ = "log_eventos"
+    id = Column(Integer, primary_key=True, index=True)
+    chat_id = Column(String, index=True)
+    evento = Column(String)
+    fecha = Column(DateTime, default=datetime.now)
+
+class PropuestaAutomatizacion(Base):
+    """Reglas propuestas por el LLM en base a los LogEventos."""
+    __tablename__ = "propuestas_automatizacion"
+    id = Column(Integer, primary_key=True, index=True)
+    chat_id = Column(String, index=True)
+    descripcion = Column(String)
+    accion_tecnica = Column(String, nullable=True) 
+    estado = Column(String, default="pendiente") # "pendiente", "aprobada", "rechazada"
+    fecha_creacion = Column(DateTime, default=datetime.now)
 
 def init_db():
     # Crea las tablas si no existen

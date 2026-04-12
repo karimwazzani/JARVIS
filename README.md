@@ -106,6 +106,11 @@ El sistema deberá:
 - Documentación clara
 - Etiquetado físico de hardware
 
+### 4.6 Eficiencia y Optimización de Costos (Regla de Oro)
+- **Cero Derroche**: Cualquier nueva función, script o módulo añadido al proyecto debe programarse buscando la máxima eficiencia posible.
+- **Uso Estricto de Tokens**: Se debe minimizar estrictamente el uso de llamadas a la API de OpenAI y la cantidad de tokens (contexto) enviados o recibidos. Las comprobaciones rutinarias de background (como monitoreo de sensores, validación de estado o chequeos de alarmas) *siempre* deben resolverse mediante lógica de código local o consultas directas a la base de datos (SQLite) sin invocar a la IA.
+- **Bajo Consumo de Memoria local**: El código debe mantener una huella de memoria RAM y CPU mínima para garantizar que JARVIS pueda correr 24/7 en hardware limitado, servidores en la nube de nivel gratuito o computadoras de escritorio sin ralentizarlas.
+
 ## 5. Arquitectura del Sistema
 ### 5.1 Arquitectura General
 - **Nodo central**: Servidor en la Nube (VPS o servicios como Render/Railway)
