@@ -1,7 +1,7 @@
 import logging
 from dotenv import load_dotenv
-from database import init_db
-from app_factory import create_app, setup_jobs
+from src.database import init_db
+from src.app_factory import create_app, setup_jobs
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',

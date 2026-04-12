@@ -1,11 +1,11 @@
 import os
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
-from bot_handlers import (
+from src.bot_handlers import (
     start_handler, help_handler, text_handler, voice_handler, location_handler,
     gasto_handler, ingreso_handler, resumen_handler, check_reminders, check_sensores,
     check_bienestar, reporte_semanal, analisis_predictivo
 )
-from learning_engine import run_learning_engine
+from src.learning_engine import run_learning_engine
 
 def create_app():
     token = os.getenv("TELEGRAM_BOT_TOKEN")
