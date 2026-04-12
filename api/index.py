@@ -19,29 +19,28 @@ application = None
 def get_app():
     global application
     if application is None:
-        import traceback
         try:
-            print("--- INICIANDO CEREBRO DE JARVIS ---")
-            init_db()
-            print("Base de datos conectada correctamente.")
+            print("--- INICIANDO CEREBRO DE JARVIS ---", flush=True)
+            # Inicializamos la App antes que la DB para agilizar
             application = create_app()
-            print("Cerebro y Bot inicializados.")
+            print("Cerebro y Bot inicializados.", flush=True)
+            
+            # DB al final
+            print("Conectando con base de datos...", flush=True)
+            init_db()
+            print("Base de datos lista.", flush=True)
         except Exception as e:
             import traceback
             error_details = traceback.format_exc()
-            print(f"--- ERROR DETALLADO ---")
-            print(error_details)
-            print(f"--- FIN ERROR ---")
+            print(f"❌ ERROR CRÍTICO EN ARRANQUE:\n{error_details}", flush=True)
             raise e
     return application
 
 async def bot_init():
     app_instance = get_app()
     if not app_instance.initialized:
+        print("DEBUG: Inicializando application...", flush=True)
         await app_instance.initialize()
-    if not app_instance.post_init:
-        # Algunos motores requieren un post-init para handlers
-        pass 
     return app_instance
 
 async def handle_update(update_json):
