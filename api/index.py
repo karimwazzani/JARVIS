@@ -68,21 +68,24 @@ def webhook():
     if request.method == 'POST':
         update_json = request.get_json(force=True)
         try:
-            print(f"DEBUG: >>> Recibido Update {update_json.get('update_id')}", flush=True)
+            update_id = update_json.get('update_id')
+            print(f"DEBUG: >>> Recibido Update {update_id}", flush=True)
             
-            # Prueba de ping rápida (Síncrona/Directa)
             msg_obj = update_json.get('message', {})
-            if msg_obj.get('text', '').lower() == 'ping':
-                print("DEBUG: Respondiendo PONG...", flush=True)
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                from telegram import Bot
-                bot = Bot(token=os.getenv("TELEGRAM_BOT_TOKEN"))
-                loop.run_until_complete(bot.send_message(chat_id=msg_obj['chat']['id'], text="PONG! 🚀"))
-                loop.close()
+            chat_id = msg_obj.get('chat', {}).get('id')
+            text = msg_obj.get('text', '').lower()
+            
+            # --- PING ULTRA-LIGERO (Sin cargar telegram) ---
+            if text == 'ping':
+                print(f"DEBUG: Enviando PONG ligero a chat {chat_id}...", flush=True)
+                import requests
+                token = os.getenv("TELEGRAM_BOT_TOKEN")
+                url = f"https://api.telegram.org/bot{token}/sendMessage"
+                r = requests.post(url, json={"chat_id": chat_id, "text": "PONG! 🚀 (Modo Directo)"})
+                print(f"DEBUG: Respuesta Telegram: {r.status_code}", flush=True)
                 return 'OK', 200
 
-            # Procesamiento pesado
+            # Procesamiento pesado (Solo si no es ping)
             print("DEBUG: Iniciando procesamiento pesado...", flush=True)
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
