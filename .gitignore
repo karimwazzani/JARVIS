@@ -1,4 +1,19 @@
-venv/
+# Byte-compiled / optimized / DLL files
 __pycache__/
+*.py[cod]
+*$py.class
+
+# Environment
 .env
+venv/
+env/
+
+# Data & Keys
+*.key
+*.db
 jarvis_local.db
+temp/
+
+# OS
+.DS_Store
+Thumbs.db

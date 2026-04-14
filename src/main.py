@@ -1,4 +1,5 @@
 import logging
+import os
 from dotenv import load_dotenv
 from src.database import init_db
 from src.app_factory import create_app, setup_jobs
