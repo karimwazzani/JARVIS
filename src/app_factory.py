@@ -3,7 +3,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, fil
 from src.bot_handlers import (
     start_handler, help_handler, text_handler, voice_handler, location_handler,
     gasto_handler, ingreso_handler, resumen_handler, check_reminders, check_sensores,
-    check_bienestar, reporte_semanal, analisis_predictivo
+    check_bienestar, reporte_semanal, analisis_predictivo, proactive_morning_briefing
 )
 from src.learning_engine import run_learning_engine
 
@@ -28,6 +28,8 @@ def create_app():
     return application
 
 def setup_jobs(application):
+    from datetime import time
+    from zoneinfo import ZoneInfo
     # Desactivamos el Job Queue en Vercel porque las lambdas mueren rápido
     # y esto solo retrasa el tiempo de respuesta
     if os.getenv("VERCEL"):
@@ -51,3 +53,9 @@ def setup_jobs(application):
 
     # Monitoreo IoT (solo para entornos persistentes)
     application.job_queue.run_repeating(check_sensores, interval=3, first=2)
+
+    # Reporte Matutino Diario (08:30 AM Buenos Aires)
+    application.job_queue.run_daily(
+        proactive_morning_briefing, 
+        time=time(8, 30, tzinfo=ZoneInfo("America/Argentina/Buenos_Aires"))
+    )

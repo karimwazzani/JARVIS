@@ -264,3 +264,27 @@ async def analisis_predictivo(context: ContextTypes.DEFAULT_TYPE):
                 except: pass
         except: pass
     db.close()
+
+async def proactive_morning_briefing(context: ContextTypes.DEFAULT_TYPE):
+    """Envía un resumen matutino proactivo a todos los usuarios conocidos."""
+    db = SessionLocal()
+    # Buscamos IDs de chat únicos que hayan interactuado alguna vez
+    try:
+        chat_ids = db.query(LogEvento.chat_id).distinct().all()
+        for row in chat_ids:
+            chat_id = row[0]
+            prompt = "Genera un saludo matutino ultra-proactivo. Usa tus herramientas para buscar el clima de Buenos Aires, el precio del BTC y las últimas noticias. También consulta mi agenda para el día de hoy y resume todo de forma elegante y motivadora."
+            
+            # Simulamos una interacción de usuario mínima para disparar la respuesta de la IA
+            temp_history = [{"role": "user", "content": prompt}]
+            response, _ = get_ai_response(temp_history, str(chat_id))
+            
+            await context.bot.send_message(
+                chat_id=chat_id, 
+                text=f"☀️ *JARVIS: REPORTE MATUTINO*\n\n{response}", 
+                parse_mode='Markdown'
+            )
+    except Exception as e:
+        print(f"Error en briefing matutino: {e}")
+    finally:
+        db.close()

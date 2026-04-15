@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from src.database import SessionLocal, Transaccion, Recordatorio, Memoria, Tarea, PreferenciaUsuario, HabitoYPatron, PropuestaAutomatizacion
 from sqlalchemy import func
 from src.multimedia import generar_grafico_balance, spotify_control
+from src.external_services import get_btc_price, get_weather, get_top_news
 
 tools = [
      {
@@ -275,6 +276,19 @@ tools = [
             "description": "Se conecta a la cámara de seguridad local IP (Tapo C200 o genérica) por protocolo RTSP y toma una fotografía instantánea del entorno físico del usuario.",
             "parameters": {"type": "object", "properties": {"chat_id": {"type": "string"}}, "required": ["chat_id"]}
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "obtener_informacion_diaria",
+            "description": "Obtiene un resumen del clima, el precio del BTC y las noticias más importantes.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "ciudad": {"type": "string", "description": "Ciudad para el clima, por defecto Buenos Aires."}
+                }
+            }
+        }
     }
 ]
 
@@ -492,6 +506,17 @@ def ejecutar_funcion(nombre: str, argumentos: dict) -> str:
         elif nombre == "control_multimedia":
             res = spotify_control(argumentos["accion"], argumentos.get("query", ""))
             return res
+
+        elif nombre == "obtener_informacion_diaria":
+            ciudad = argumentos.get("ciudad", "Buenos Aires")
+            clima = get_weather(ciudad)
+            btc = get_btc_price()
+            noticias = get_top_news()
+            return json.dumps({
+                "clima": clima,
+                "btc": btc,
+                "noticias": noticias
+            })
 
         return "Función no reconocida."
     except Exception as e:
