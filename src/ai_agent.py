@@ -642,10 +642,10 @@ def get_ai_response(historial: list, chat_id: str) -> tuple[str, list]:
         print(f"Error AI Agent: {e}")
         return "Error en mi núcleo OpenAI.", historial
 
-def generar_audio_respuesta(texto: str, chat_id: str) -> str:
-    """Convierte la respuesta de texto en voz usando gTTS (Google TTS) sin costo de tokens."""
+async def generar_audio_respuesta(texto: str, chat_id: str) -> str:
+    """Convierte la respuesta en voz usando Microsoft Edge TTS (alta calidad, gratis)."""
     import re
-    from gtts import gTTS
+    import edge_tts
     
     # Limpiamos el texto de marcadores UI antes de hablar
     texto = re.sub(r"\[.*?\]", "", texto).strip()
@@ -654,9 +654,12 @@ def generar_audio_respuesta(texto: str, chat_id: str) -> str:
     file_path = f"jarvis_response_{chat_id}.ogg"
     
     try:
-        tts = gTTS(text=texto, lang='es', tld='com.ar') # Acento argentino
-        tts.save(file_path)
+        # Voz masculina con acento español elegante y profesional (estilo JARVIS tradicional)
+        voz = "es-ES-AlvaroNeural" 
+        
+        communicate = edge_tts.Communicate(texto, voz)
+        await communicate.save(file_path)
         return file_path
     except Exception as e:
-        print(f"Error gTTS: {e}")
+        print(f"Error Edge TTS: {e}")
         return ""

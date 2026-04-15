@@ -62,7 +62,7 @@ async def enviar_respuesta_jarvis(update: Update, response: str, es_voz: bool = 
 
     # Si es voz, generamos el TTS
     if es_voz:
-        audio_path = generar_audio_respuesta(response, str(update.effective_chat.id))
+        audio_path = await generar_audio_respuesta(response, str(update.effective_chat.id))
         if audio_path and os.path.exists(audio_path):
             with open(audio_path, 'rb') as voice_file:
                 await update.message.reply_voice(voice=voice_file)
