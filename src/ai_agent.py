@@ -575,7 +575,8 @@ def get_ai_response(historial: list, chat_id: str) -> tuple[str, list]:
         "6. MODO BÚSQUEDA RAG: Si el usuario asume que deberías recordar algo, o te hace una pregunta personal ('¿Cuál es mi auto?'), ¡usa obligatoriamente 'buscar_memoria' primero antes de contestarle que no sabes!\n"
         "7. Administra tareas usando 'crear_tarea', 'consultar_tareas' y 'completar_tarea'. Pregunta siempre por una fecha límite si sospechas que la tarea es para el futuro.\n"
         "8. Usa 'consultar_agenda' para dar un resumen del día o semana si el usuario pregunta '¿Qué tengo para hoy?' o similar.\n"
-        "9. Usa 'gestionar_propuesta_automatizacion' si el usuario te lo pide."
+        "9. Usa 'gestionar_propuesta_automatizacion' si el usuario te lo pide.\n"
+        "10. Usa 'obtener_informacion_diaria' cuando el usuario pregunte por noticias, el clima o el precio del BTC."
     )
     
     messages = [{"role": "system", "content": system_prompt}] + historial
