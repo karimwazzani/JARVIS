@@ -316,11 +316,24 @@ async def proactive_morning_briefing(context: ContextTypes.DEFAULT_TYPE):
             temp_history = [{"role": "user", "content": prompt}]
             response, _ = get_ai_response(temp_history, str(chat_id))
             
-            await context.bot.send_message(
-                chat_id=chat_id, 
-                text=f"☀️ *JARVIS: REPORTE MATUTINO*\n\n{response}", 
-                parse_mode='Markdown'
-            )
+            audio_path = await generar_audio_respuesta(response, chat_id)
+            if audio_path and os.path.exists(audio_path):
+                with open(audio_path, 'rb') as audio_file:
+                    await context.bot.send_voice(
+                        chat_id=chat_id, 
+                        voice=audio_file, 
+                        caption="☀️ *JARVIS: REPORTE MATUTINO*\n_(Audio generado proactivamente)_", 
+                        parse_mode='Markdown'
+                    )
+                try:
+                    os.remove(audio_path)
+                except: pass
+            else:
+                await context.bot.send_message(
+                    chat_id=chat_id, 
+                    text=f"☀️ *JARVIS: REPORTE MATUTINO*\n\n{response}", 
+                    parse_mode='Markdown'
+                )
     except Exception as e:
         print(f"Error en briefing matutino: {e}")
     finally:

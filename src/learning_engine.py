@@ -5,6 +5,7 @@ from telegram.ext import ContextTypes
 from openai import OpenAI
 from dotenv import load_dotenv
 from src.database import SessionLocal, LogEvento, PropuestaAutomatizacion
+from src.ai_agent import generar_audio_respuesta
 
 async def run_learning_engine(context: ContextTypes.DEFAULT_TYPE):
     """
@@ -40,10 +41,10 @@ async def run_learning_engine(context: ContextTypes.DEFAULT_TYPE):
         texto_logs = "\n".join(lista_eventos)
         
         prompt = (
-            "Eres el Motor de Aprendizaje Continuo de JARVIS.\n"
-            "Analiza los siguientes logs de eventos ordenados cronológicamente y detecta si el usuario tiene un patrón o rutina repetitiva. "
-            "Si encuentras al menos un patrón claro, responde EXCLUSIVAMENTE con un JSON válido usando el siguiente formato exacto:\n"
-            "{\"patron_encontrado\": true, \"descripcion_sugerencia\": \"Noté que de lunes a viernes a las 08:00 siempre registrás un gasto de café. ¿Te lo automatizo?\", \"accion_tecnica\": \"registrar_gasto:cafe\"}\n"
+            "Eres el Motor de Aprendizaje Continuo de JARVIS. Tu tono debe ser 'canchero', ágil, perspicaz y dirigiéndote siempre al 'Sr. Karim'.\n"
+            "Analiza los siguientes logs de eventos cronológicos y detecta si el Sr. Karim tiene un patrón o rutina repetitiva. "
+            "Si encuentras un patrón claro (ej: mismo gasto a la misma hora), responde EXCLUSIVAMENTE con un JSON válido con este formato:\n"
+            "{\"patron_encontrado\": true, \"descripcion_sugerencia\": \"Sr. Karim, estuve mirando su telemetría y veo que de lunes a viernes siempre carga nafta a esta hora. ¿Quiere que le automatice ese gasto así se lo saca de encima?\", \"accion_tecnica\": \"registrar_gasto:nafta\"}\n"
             "Si no hay un patrón claro o no estás seguro, responde:\n"
             "{\"patron_encontrado\": false}\n"
             "No respondas absolutamente nada más que el JSON válido.\n\n"
@@ -73,12 +74,27 @@ async def run_learning_engine(context: ContextTypes.DEFAULT_TYPE):
                     db.add(nueva_propuesta)
                     db.commit()
                     
-                    # Notificar al momento
-                    await context.bot.send_message(
-                        chat_id=chat_id, 
-                        text=f"🤖 *Aprendizaje Continuo JARVIS:*\n\n{desc}\n\n_(Para aceptar esta sugerencia, decime 'Sí, acepto tu propuesta JARVIS' y yo mismo configuraré la regla)._", 
-                        parse_mode='Markdown'
-                    )
+                    # Generar audio con la voz ágil y canchera de JARVIS
+                    audio_path = await generar_audio_respuesta(desc, chat_id)
+                    
+                    if audio_path and os.path.exists(audio_path):
+                        with open(audio_path, 'rb') as audio_file:
+                            await context.bot.send_voice(
+                                chat_id=chat_id, 
+                                voice=audio_file, 
+                                caption="🤖 *Nueva Propuesta de Automatización de JARVIS*", 
+                                parse_mode='Markdown'
+                            )
+                        try:
+                            os.remove(audio_path)
+                        except: pass
+                    else:
+                        # Fallback a texto si falla el audio
+                        await context.bot.send_message(
+                            chat_id=chat_id, 
+                            text=f"🤖 *Aprendizaje Continuo JARVIS:*\n\n{desc}", 
+                            parse_mode='Markdown'
+                        )
         except Exception as e:
             print(f"Error procesando learning engine para {chat_id}: {e}")
             pass
