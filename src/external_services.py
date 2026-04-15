@@ -38,6 +38,9 @@ def get_top_news():
         news_items = []
         for item in root.findall('./channel/item')[:5]:
             title = item.find('title').text
+            # Truncamos los títulos para ahorrar tokens
+            if len(title) > 100:
+                title = title[:97] + "..."
             news_items.append(title)
         return news_items
     except Exception as e:

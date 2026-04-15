@@ -1,8 +1,9 @@
 import os
 from telegram import Update
 from telegram.ext import ContextTypes
-from src.ai_agent import get_ai_response, transcribir_audio
+from src.ai_agent import get_ai_response, transcribir_audio, ejecutar_funcion
 from src.database import SessionLocal, Transaccion, Recordatorio, SensorAlert, Tarea, PreferenciaUsuario, HabitoYPatron, LogEvento, PropuestaAutomatizacion
+from src.external_services import get_btc_price, get_weather, get_top_news
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from sqlalchemy import func
@@ -121,7 +122,7 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     registrar_evento(str(chat_id), f"Texto: {user_text}")
     if chat_id not in user_memory: user_memory[chat_id] = []
     user_memory[chat_id].append({"role": "user", "content": user_text})
-    if len(user_memory[chat_id]) > 15: user_memory[chat_id] = user_memory[chat_id][-15:]
+    if len(user_memory[chat_id]) > 10: user_memory[chat_id] = user_memory[chat_id][-10:]
         
     try:
         await context.bot.send_chat_action(chat_id=chat_id, action='typing')
@@ -151,7 +152,7 @@ async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         registrar_evento(str(chat_id), f"Voz (transcrito): {texto_transcrito}")
         if chat_id not in user_memory: user_memory[chat_id] = []
         user_memory[chat_id].append({"role": "user", "content": texto_transcrito})
-        if len(user_memory[chat_id]) > 15: user_memory[chat_id] = user_memory[chat_id][-15:]
+        if len(user_memory[chat_id]) > 10: user_memory[chat_id] = user_memory[chat_id][-10:]
             
         response, updated_history = get_ai_response(user_memory[chat_id], str(chat_id))
         user_memory[chat_id] = updated_history
@@ -266,16 +267,28 @@ async def analisis_predictivo(context: ContextTypes.DEFAULT_TYPE):
     db.close()
 
 async def proactive_morning_briefing(context: ContextTypes.DEFAULT_TYPE):
-    """Envía un resumen matutino proactivo a todos los usuarios conocidos."""
+    """Envía un resumen matutino proactivo optimizado para baja latencia (sin tool calls)."""
     db = SessionLocal()
-    # Buscamos IDs de chat únicos que hayan interactuado alguna vez
     try:
+        # Pre-fetch de datos externos para ahorrar round-trips de IA
+        clima = get_weather("Buenos Aires")
+        btc = get_btc_price()
+        noticias = "\n- ".join(get_top_news())
+        
         chat_ids = db.query(LogEvento.chat_id).distinct().all()
         for row in chat_ids:
             chat_id = row[0]
-            prompt = "Genera un saludo matutino ultra-proactivo. Usa tus herramientas para buscar el clima de Buenos Aires, el precio del BTC y las últimas noticias. También consulta mi agenda para el día de hoy y resume todo de forma elegante y motivadora."
             
-            # Simulamos una interacción de usuario mínima para disparar la respuesta de la IA
+            # Consultar agenda localmente para inyectarla directo
+            agenda_raw = ejecutar_funcion("consultar_agenda", {"chat_id": str(chat_id)})
+            
+            prompt = (
+                f"SISTEMA: Reporte Matutino de Baja Latencia.\n"
+                f"DATOS RECIENTES:\n- Clima: {clima}\n- BTC: {btc}\n- Noticias: {noticias}\n- {agenda_raw}\n\n"
+                "Genera un saludo matutino elegante, breve y motivador basado en estos datos. "
+                "No uses herramientas, redacta la respuesta directamente para ahorrar tokens."
+            )
+            
             temp_history = [{"role": "user", "content": prompt}]
             response, _ = get_ai_response(temp_history, str(chat_id))
             
