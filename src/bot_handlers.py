@@ -4,6 +4,7 @@ from telegram.ext import ContextTypes
 from src.ai_agent import get_ai_response, transcribir_audio
 from src.database import SessionLocal, Transaccion, Recordatorio, SensorAlert, Tarea, PreferenciaUsuario, HabitoYPatron, LogEvento, PropuestaAutomatizacion
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from sqlalchemy import func
 
 # Memoria temporal
@@ -53,7 +54,7 @@ async def enviar_respuesta_jarvis(update: Update, response: str):
     
 async def location_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
-    last_interaction[chat_id] = datetime.now()
+    last_interaction[chat_id] = datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).replace(tzinfo=None)
     if update.message.location:
         lat = update.message.location.latitude
         lon = update.message.location.longitude
@@ -116,7 +117,7 @@ async def resumen_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     user_text = update.message.text
-    last_interaction[chat_id] = datetime.now()
+    last_interaction[chat_id] = datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).replace(tzinfo=None)
     registrar_evento(str(chat_id), f"Texto: {user_text}")
     if chat_id not in user_memory: user_memory[chat_id] = []
     user_memory[chat_id].append({"role": "user", "content": user_text})
@@ -133,7 +134,7 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Manejador para notas de Voz (Vía Whisper)"""
     chat_id = update.effective_chat.id
-    last_interaction[chat_id] = datetime.now()
+    last_interaction[chat_id] = datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).replace(tzinfo=None)
     
     try:
         await context.bot.send_chat_action(chat_id=chat_id, action='typing')
@@ -162,7 +163,7 @@ async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def check_reminders(context: ContextTypes.DEFAULT_TYPE):
     db = SessionLocal()
-    ahora = datetime.now()
+    ahora = datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).replace(tzinfo=None)
     pendientes = db.query(Recordatorio).filter(Recordatorio.enviado == False, Recordatorio.fecha_aviso <= ahora).all()
     for r in pendientes:
         try:
@@ -214,7 +215,7 @@ async def check_sensores(context: ContextTypes.DEFAULT_TYPE):
     db.close()
 
 async def check_bienestar(context: ContextTypes.DEFAULT_TYPE):
-    ahora = datetime.now()
+    ahora = datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).replace(tzinfo=None)
     for chat_id, ultima_vez in last_interaction.items():
         if (ahora - ultima_vez).total_seconds() > 4 * 3600: # 4 horas
             if 8 <= ahora.hour <= 22:
@@ -243,7 +244,7 @@ async def reporte_semanal(context: ContextTypes.DEFAULT_TYPE):
 async def analisis_predictivo(context: ContextTypes.DEFAULT_TYPE):
     """Módulo de Análisis Predictivo y Detección de Patrones"""
     db = SessionLocal()
-    ahora = datetime.now()
+    ahora = datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).replace(tzinfo=None)
     
     for chat_id in user_memory.keys():
         try:

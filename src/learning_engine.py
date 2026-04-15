@@ -19,8 +19,9 @@ async def run_learning_engine(context: ContextTypes.DEFAULT_TYPE):
     client = OpenAI(api_key=api_key)
     db = SessionLocal()
     
+    from zoneinfo import ZoneInfo
     # Agrupar los usuarios activos en la última semana
-    semana_pasada = datetime.now() - timedelta(days=7)
+    semana_pasada = datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).replace(tzinfo=None) - timedelta(days=7)
     usuarios_chats = db.query(LogEvento.chat_id).filter(LogEvento.fecha >= semana_pasada).distinct().all()
     
     for row in usuarios_chats:

@@ -1,6 +1,7 @@
 import os
 import json
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from openai import OpenAI
 from dotenv import load_dotenv
 from src.database import SessionLocal, Transaccion, Recordatorio, Memoria, Tarea, PreferenciaUsuario, HabitoYPatron, PropuestaAutomatizacion
@@ -146,9 +147,26 @@ tools = [
                 "properties": {
                     "chat_id": {"type": "string"},
                     "titulo": {"type": "string", "description": "Breve nombre de la tarea."},
-                    "descripcion": {"type": "string"}
+                    "descripcion": {"type": "string"},
+                    "fecha_limite": {"type": "string", "description": "Opcional. Fecha y hora límite en formato 'YYYY-MM-DD HH:MM:00'."}
                 },
                 "required": ["chat_id", "titulo"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "consultar_agenda",
+            "description": "Consulta todos los eventos (recordatorios y tareas con fecha) para un rango de fechas. Si no se especifica rango, busca lo de hoy.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "chat_id": {"type": "string"},
+                    "fecha_inicio": {"type": "string", "description": "Formato 'YYYY-MM-DD'."},
+                    "fecha_fin": {"type": "string", "description": "Formato 'YYYY-MM-DD'."}
+                },
+                "required": ["chat_id"]
             }
         }
     },
@@ -352,16 +370,69 @@ def ejecutar_funcion(nombre: str, argumentos: dict) -> str:
             return f"He procedido a {argumentos['accion']} las luces de {argumentos['habitacion']}."
             
         elif nombre == "crear_tarea":
-            nueva_tarea = Tarea(chat_id=argumentos["chat_id"], titulo=argumentos["titulo"], descripcion=argumentos.get("descripcion", ""))
+            fecha_limite = None
+            if "fecha_limite" in argumentos and argumentos["fecha_limite"]:
+                try:
+                    fecha_limite = datetime.strptime(argumentos["fecha_limite"], "%Y-%m-%d %H:%M:%S")
+                except: pass
+                
+            nueva_tarea = Tarea(
+                chat_id=str(argumentos["chat_id"]), 
+                titulo=argumentos["titulo"], 
+                descripcion=argumentos.get("descripcion", ""),
+                fecha_limite=fecha_limite
+            )
             db.add(nueva_tarea)
             db.commit()
             return f"Tarea '{argumentos['titulo']}' creada con éxito."
+            
+        elif nombre == "consultar_agenda":
+            chat_id = str(argumentos["chat_id"])
+            fecha_inicio_str = argumentos.get("fecha_inicio", datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).replace(tzinfo=None).strftime("%Y-%m-%d"))
+            fecha_fin_str = argumentos.get("fecha_fin", fecha_inicio_str)
+            
+            try:
+                # Ajustar fechas para cubrir todo el día
+                inicio = datetime.strptime(f"{fecha_inicio_str} 00:00:00", "%Y-%m-%d %H:%M:%S")
+                fin = datetime.strptime(f"{fecha_fin_str} 23:59:59", "%Y-%m-%d %H:%M:%S")
+            except:
+                return "Error en el formato de fecha proporcionado."
+
+            # Consultar Recordatorios
+            recs = db.query(Recordatorio).filter(
+                Recordatorio.chat_id == chat_id,
+                Recordatorio.fecha_aviso >= inicio,
+                Recordatorio.fecha_aviso <= fin
+            ).all()
+
+            # Consultar Tareas con fecha límite
+            tareas = db.query(Tarea).filter(
+                Tarea.chat_id == chat_id,
+                Tarea.fecha_limite >= inicio,
+                Tarea.fecha_limite <= fin,
+                Tarea.estado == "pendiente"
+            ).all()
+
+            if not recs and not tareas:
+                return f"No tienes nada agendado entre el {fecha_inicio_str} y el {fecha_fin_str}."
+
+            agenda = []
+            for r in recs:
+                estado = "🔔" if not r.enviado else "✅"
+                agenda.append(f"{estado} [RECOR] {r.fecha_aviso.strftime('%H:%M')} - {r.mensaje}")
+            for t in tareas:
+                agenda.append(f"📅 [TAREA] Vence: {t.fecha_limite.strftime('%H:%M')} - {t.titulo}")
+
+            # Ordenar por hora si es el mismo día
+            agenda.sort()
+            
+            return f"Agenda del {fecha_inicio_str} al {fecha_fin_str}:\n" + "\n".join(agenda)
             
         elif nombre == "completar_tarea":
             t = db.query(Tarea).filter(Tarea.id == argumentos["tarea_id"]).first()
             if not t: return "No encontré esa tarea."
             t.estado = "completada"
-            t.fecha_completada = datetime.now()
+            t.fecha_completada = datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).replace(tzinfo=None)
             db.commit()
             return f"Genial, tarea '{t.titulo}' marcada como completada."
             
@@ -461,7 +532,7 @@ def get_ai_response(historial: list, chat_id: str) -> tuple[str, list]:
     finally:
         db.close()
     
-    now = datetime.now()
+    now = datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).replace(tzinfo=None)
     fecha = now.strftime("%A, %d de %B de %Y")
     hora = now.strftime("%H:%M:%S")
 
@@ -477,8 +548,9 @@ def get_ai_response(historial: list, chat_id: str) -> tuple[str, list]:
         "4. Si el usuario te indica un gusto rutinario ('no me avises de noche'), usa 'configurar_preferencia'.\n"
         "5. MODO MEMORIA PASIVA: ¡Usa 'guardar_memoria' proactivamente TODO EL TIEMPO si el usuario te menciona gustos, parientes, posesiones, o datos curiosos de sí mismo!\n"
         "6. MODO BÚSQUEDA RAG: Si el usuario asume que deberías recordar algo, o te hace una pregunta personal ('¿Cuál es mi auto?'), ¡usa obligatoriamente 'buscar_memoria' primero antes de contestarle que no sabes!\n"
-        "7. Administra tareas usando 'crear_tarea', 'consultar_tareas' y 'completar_tarea'. Si el usuario te pregunta por un tema (ej: autos), usa 'buscar_memoria' y 'consultar_tareas' para cruzar la información inteligentemente.\n"
-        "8. Usa 'gestionar_propuesta_automatizacion' si el usuario te lo pide."
+        "7. Administra tareas usando 'crear_tarea', 'consultar_tareas' y 'completar_tarea'. Pregunta siempre por una fecha límite si sospechas que la tarea es para el futuro.\n"
+        "8. Usa 'consultar_agenda' para dar un resumen del día o semana si el usuario pregunta '¿Qué tengo para hoy?' o similar.\n"
+        "9. Usa 'gestionar_propuesta_automatizacion' si el usuario te lo pide."
     )
     
     messages = [{"role": "system", "content": system_prompt}] + historial

@@ -1,10 +1,14 @@
 import os
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Boolean
 from sqlalchemy.orm import declarative_base, sessionmaker
 from dotenv import load_dotenv
 
 load_dotenv()
+
+def get_now():
+    return datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).replace(tzinfo=None)
 
 # Prioridad de variables de entorno (Vercel usa POSTGRES_URL, otros usan DATABASE_URL)
 # Si es SQLite, usamos /tmp/ para evitar errores de solo lectura en Vercel
@@ -33,7 +37,7 @@ class Transaccion(Base):
     tipo = Column(String, index=True) # Ex: "gasto" o "ingreso"
     monto = Column(Float)
     descripcion = Column(String)
-    fecha = Column(DateTime, default=datetime.now)
+    fecha = Column(DateTime, default=get_now)
 
 class Recordatorio(Base):
     __tablename__ = "recordatorios"
@@ -49,14 +53,14 @@ class Memoria(Base):
     id = Column(Integer, primary_key=True, index=True)
     categoria = Column(String)
     dato = Column(String)
-    fecha_registro = Column(DateTime, default=datetime.now)
+    fecha_registro = Column(DateTime, default=get_now)
 
 class SensorAlert(Base):
     __tablename__ = "sensor_alertas"
     id = Column(Integer, primary_key=True, index=True)
     sensor_id = Column(String) # Ej: 'PIR_Sala'
     mensaje = Column(String)   # Ej: 'Movimiento Detectado'
-    fecha = Column(DateTime, default=datetime.now)
+    fecha = Column(DateTime, default=get_now)
     leido = Column(Boolean, default=False)
 
 class Tarea(Base):
@@ -67,7 +71,8 @@ class Tarea(Base):
     titulo = Column(String)
     descripcion = Column(String, nullable=True)
     estado = Column(String, default="pendiente") # "pendiente", "en_progreso", "completada"
-    fecha_creacion = Column(DateTime, default=datetime.now)
+    fecha_limite = Column(DateTime, nullable=True) # Nueva columna para agendar
+    fecha_creacion = Column(DateTime, default=get_now)
     fecha_completada = Column(DateTime, nullable=True)
 
 class PreferenciaUsuario(Base):
@@ -77,7 +82,7 @@ class PreferenciaUsuario(Base):
     chat_id = Column(String, index=True)
     clave = Column(String, index=True) # Ej: "modo_noche_inicio"
     valor = Column(String)             # Ej: "22:00"
-    fecha_actualizacion = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    fecha_actualizacion = Column(DateTime, default=get_now, onupdate=get_now)
 
 class HabitoYPatron(Base):
     """Registro de comportamientos detectados por JARVIS."""
@@ -86,7 +91,7 @@ class HabitoYPatron(Base):
     chat_id = Column(String, index=True)
     descripcion = Column(String) # Ej: "Suele pedir resumen financiero los viernes"
     confianza = Column(Float, default=1.0) # Nivel de certeza de JARVIS
-    fecha_deteccion = Column(DateTime, default=datetime.now)
+    fecha_deteccion = Column(DateTime, default=get_now)
 
 class LogEvento(Base):
     """Telemetría para análisis predictivo (qué hace el usuario y cuándo)."""
@@ -94,7 +99,7 @@ class LogEvento(Base):
     id = Column(Integer, primary_key=True, index=True)
     chat_id = Column(String, index=True)
     evento = Column(String)
-    fecha = Column(DateTime, default=datetime.now)
+    fecha = Column(DateTime, default=get_now)
 
 class PropuestaAutomatizacion(Base):
     """Reglas propuestas por el LLM en base a los LogEventos."""
@@ -104,7 +109,7 @@ class PropuestaAutomatizacion(Base):
     descripcion = Column(String)
     accion_tecnica = Column(String, nullable=True) 
     estado = Column(String, default="pendiente") # "pendiente", "aprobada", "rechazada"
-    fecha_creacion = Column(DateTime, default=datetime.now)
+    fecha_creacion = Column(DateTime, default=get_now)
 
 def init_db():
     # Crea las tablas si no existen

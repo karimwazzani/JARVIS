@@ -9,3 +9,4 @@ pytapo==3.3.17
 opencv-python-headless
 flask==3.0.2
 gunicorn==21.2.0
+tzdata
