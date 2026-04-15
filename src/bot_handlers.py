@@ -1,7 +1,7 @@
 import os
 from telegram import Update
 from telegram.ext import ContextTypes
-from src.ai_agent import get_ai_response, transcribir_audio, ejecutar_funcion
+from src.ai_agent import get_ai_response, transcribir_audio, ejecutar_funcion, generar_audio_respuesta
 from src.database import SessionLocal, Transaccion, Recordatorio, SensorAlert, Tarea, PreferenciaUsuario, HabitoYPatron, LogEvento, PropuestaAutomatizacion, Conversacion
 from src.external_services import get_btc_price, get_weather, get_top_news
 from datetime import datetime
@@ -36,7 +36,7 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Puedes hablarme, enviarme audios o usar comandos manuales. Usa /ayuda para más info."
     )
 
-async def enviar_respuesta_jarvis(update: Update, response: str):
+async def enviar_respuesta_jarvis(update: Update, response: str, es_voz: bool = False):
     import re, os
     match_graf = re.search(r"\[GRAFICO_GENERADO:(.*?)\]", response)
     match_fot = re.search(r"\[FOTO_CAMARA:(.*?)\]", response)
@@ -60,6 +60,18 @@ async def enviar_respuesta_jarvis(update: Update, response: str):
             await update.message.reply_text(text="⚠️ JARVIS: No se encontró el archivo visual en el almacenamiento local.", parse_mode='Markdown')
         return
 
+    # Si es voz, generamos el TTS
+    if es_voz:
+        audio_path = generar_audio_respuesta(response, str(update.effective_chat.id))
+        if audio_path and os.path.exists(audio_path):
+            with open(audio_path, 'rb') as voice_file:
+                await update.message.reply_voice(voice=voice_file)
+            try:
+                os.remove(audio_path)
+            except: pass
+            return
+
+    # Fallback to text (or user sent text)
     await update.message.reply_text(text=response, parse_mode='Markdown')
     
 async def location_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -132,14 +144,14 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     registrar_mensaje(str(chat_id), "user", user_text)
     if chat_id not in user_memory: user_memory[chat_id] = []
     user_memory[chat_id].append({"role": "user", "content": user_text})
-    if len(user_memory[chat_id]) > 10: user_memory[chat_id] = user_memory[chat_id][-10:]
+    if len(user_memory[chat_id]) > 40: user_memory[chat_id] = user_memory[chat_id][-40:]
         
     try:
         await context.bot.send_chat_action(chat_id=chat_id, action='typing')
         response, updated_history = get_ai_response(user_memory[chat_id], str(chat_id))
         user_memory[chat_id] = updated_history
         registrar_mensaje(str(chat_id), "assistant", response)
-        await enviar_respuesta_jarvis(update, response)
+        await enviar_respuesta_jarvis(update, response, es_voz=False)
     except Exception as e:
         await update.message.reply_text(text=f"Error: {str(e)}")
 
@@ -164,12 +176,12 @@ async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         registrar_mensaje(str(chat_id), "user", f"[VOZ] {texto_transcrito}")
         if chat_id not in user_memory: user_memory[chat_id] = []
         user_memory[chat_id].append({"role": "user", "content": texto_transcrito})
-        if len(user_memory[chat_id]) > 10: user_memory[chat_id] = user_memory[chat_id][-10:]
+        if len(user_memory[chat_id]) > 40: user_memory[chat_id] = user_memory[chat_id][-40:]
             
         response, updated_history = get_ai_response(user_memory[chat_id], str(chat_id))
         user_memory[chat_id] = updated_history
         registrar_mensaje(str(chat_id), "assistant", response)
-        await enviar_respuesta_jarvis(update, response)
+        await enviar_respuesta_jarvis(update, response, es_voz=True)
         
     except Exception as e:
         await update.message.reply_text(text=f"Error en audio: {str(e)}")

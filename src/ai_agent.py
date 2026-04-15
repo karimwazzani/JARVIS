@@ -636,3 +636,31 @@ def get_ai_response(historial: list, chat_id: str) -> tuple[str, list]:
     except Exception as e:
         print(f"Error AI Agent: {e}")
         return "Error en mi núcleo OpenAI.", historial
+
+def generar_audio_respuesta(texto: str, chat_id: str) -> str:
+    """Convierte la respuesta de texto en voz usando el modelo tts-1 de OpenAI."""
+    load_dotenv()
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key: return ""
+    
+    # Limpiamos el texto de marcadores UI antes de hablar
+    import re
+    texto = re.sub(r"\[.*?\]", "", texto).strip()
+    
+    if not texto: return ""
+    
+    client = OpenAI(api_key=api_key)
+    file_path = f"jarvis_response_{chat_id}.ogg"
+    
+    try:
+        response = client.audio.speech.create(
+            model="tts-1-hd",
+            voice="onyx", # Voz grave y seria
+            input=texto,
+            response_format="opus" # Formato nativo de Telegram Voice
+        )
+        response.stream_to_file(file_path)
+        return file_path
+    except Exception as e:
+        print(f"Error TTS: {e}")
+        return ""
