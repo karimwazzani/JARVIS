@@ -5,13 +5,24 @@ logger = logging.getLogger(__name__)
 
 def get_btc_price():
     try:
+        # Intento 1: Binance
         url = "https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT"
-        response = requests.get(url, timeout=10)
-        data = response.json()
-        return f"${float(data['price']):,.2f}"
+        response = requests.get(url, timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            return f"${float(data['price']):,.2f}"
+        
+        # Intento 2: CoinGecko (Fallback)
+        url_cg = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd"
+        response_cg = requests.get(url_cg, timeout=5)
+        if response_cg.status_code == 200:
+            data_cg = response_cg.json()
+            return f"${float(data_cg['bitcoin']['usd']):,.2f}"
+            
+        return "No disponible (API Error)"
     except Exception as e:
         logger.error(f"Error fetching BTC price: {e}")
-        return "No disponible"
+        return "No disponible (Timeout/Connection Error)"
 
 def get_weather(city="Buenos Aires"):
     try:
