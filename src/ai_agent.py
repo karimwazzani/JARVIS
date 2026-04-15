@@ -281,11 +281,14 @@ tools = [
         "type": "function",
         "function": {
             "name": "obtener_informacion_diaria",
-            "description": "Obtiene un resumen del clima, el precio del BTC y las noticias más importantes.",
+            "description": "Obtiene información externa (clima, precio del BTC y/o noticias). Solo activa (true) lo que el usuario preguntó explícitamente.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "ciudad": {"type": "string", "description": "Ciudad para el clima, por defecto Buenos Aires."}
+                    "incluir_clima": {"type": "boolean"},
+                    "ciudad": {"type": "string", "description": "Ciudad para el clima, por defecto Buenos Aires."},
+                    "incluir_btc": {"type": "boolean"},
+                    "incluir_noticias": {"type": "boolean"}
                 }
             }
         }
@@ -522,15 +525,17 @@ def ejecutar_funcion(nombre: str, argumentos: dict) -> str:
             return res
 
         elif nombre == "obtener_informacion_diaria":
-            ciudad = argumentos.get("ciudad", "Buenos Aires")
-            clima = get_weather(ciudad)
-            btc = get_btc_price()
-            noticias = get_top_news()
-            return json.dumps({
-                "clima": clima,
-                "btc": btc,
-                "noticias": noticias
-            })
+            res = {}
+            if argumentos.get("incluir_clima", False):
+                res["clima"] = get_weather(argumentos.get("ciudad", "Buenos Aires"))
+            if argumentos.get("incluir_btc", False):
+                res["btc"] = get_btc_price()
+            if argumentos.get("incluir_noticias", False):
+                res["noticias"] = get_top_news()
+                
+            if not res:
+                return "Debes especificar al menos un parámetro (clima, btc o noticias) a True."
+            return json.dumps(res)
 
         elif nombre == "buscar_en_conversaciones":
             consulta = argumentos["consulta"].lower()
@@ -654,7 +659,7 @@ def generar_audio_respuesta(texto: str, chat_id: str) -> str:
     
     try:
         response = client.audio.speech.create(
-            model="tts-1-hd",
+            model="tts-1",
             voice="onyx", # Voz grave y seria
             input=texto,
             response_format="opus" # Formato nativo de Telegram Voice
