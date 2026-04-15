@@ -4,7 +4,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from openai import OpenAI
 from dotenv import load_dotenv
-from src.database import SessionLocal, Transaccion, Recordatorio, Memoria, Tarea, PreferenciaUsuario, HabitoYPatron, PropuestaAutomatizacion
+from src.database import SessionLocal, Transaccion, Recordatorio, Memoria, Tarea, PreferenciaUsuario, HabitoYPatron, PropuestaAutomatizacion, Conversacion
 from sqlalchemy import func
 from src.multimedia import generar_grafico_balance, spotify_control
 from src.external_services import get_btc_price, get_weather, get_top_news
@@ -289,6 +289,20 @@ tools = [
                 }
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "buscar_en_conversaciones",
+            "description": "Busca en el historial completo de mensajes pasados entre el usuario y JARVIS usando una palabra clave.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "consulta": {"type": "string", "description": "Palabra clave o tema a buscar en los mensajes antiguos."}
+                },
+                "required": ["consulta"]
+            }
+        }
     }
 ]
 
@@ -517,6 +531,14 @@ def ejecutar_funcion(nombre: str, argumentos: dict) -> str:
                 "btc": btc,
                 "noticias": noticias
             })
+
+        elif nombre == "buscar_en_conversaciones":
+            consulta = argumentos["consulta"].lower()
+            resultados = db.query(Conversacion).filter(Conversacion.contenido.ilike(f"%{consulta}%")).order_by(Conversacion.id.desc()).limit(10).all()
+            if not resultados:
+                return f"No encontré mensajes que mencionen '{consulta}'."
+            res = [f"[{m.fecha.strftime('%Y-%m-%d %H:%M')}] {m.rol.upper()}: {m.contenido}" for m in resultados]
+            return "Hallazgos en el historial:\n" + "\n".join(res)
 
         return "Función no reconocida."
     except Exception as e:

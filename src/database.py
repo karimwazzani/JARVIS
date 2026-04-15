@@ -101,6 +101,15 @@ class LogEvento(Base):
     evento = Column(String)
     fecha = Column(DateTime, default=get_now)
 
+class Conversacion(Base):
+    """Almacena el historial completo de mensajes para búsqueda y memoria a largo plazo."""
+    __tablename__ = "conversaciones"
+    id = Column(Integer, primary_key=True, index=True)
+    chat_id = Column(String, index=True)
+    rol = Column(String) # "user" o "assistant"
+    contenido = Column(String)
+    fecha = Column(DateTime, default=get_now)
+
 class PropuestaAutomatizacion(Base):
     """Reglas propuestas por el LLM en base a los LogEventos."""
     __tablename__ = "propuestas_automatizacion"

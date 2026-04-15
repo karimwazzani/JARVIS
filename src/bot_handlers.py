@@ -2,7 +2,7 @@ import os
 from telegram import Update
 from telegram.ext import ContextTypes
 from src.ai_agent import get_ai_response, transcribir_audio, ejecutar_funcion
-from src.database import SessionLocal, Transaccion, Recordatorio, SensorAlert, Tarea, PreferenciaUsuario, HabitoYPatron, LogEvento, PropuestaAutomatizacion
+from src.database import SessionLocal, Transaccion, Recordatorio, SensorAlert, Tarea, PreferenciaUsuario, HabitoYPatron, LogEvento, PropuestaAutomatizacion, Conversacion
 from src.external_services import get_btc_price, get_weather, get_top_news
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -16,6 +16,15 @@ def registrar_evento(chat_id: str, evento: str):
     try:
         db = SessionLocal()
         db.add(LogEvento(chat_id=str(chat_id), evento=evento))
+        db.commit()
+    except: pass
+    finally:
+        db.close()
+
+def registrar_mensaje(chat_id: str, rol: str, contenido: str):
+    try:
+        db = SessionLocal()
+        db.add(Conversacion(chat_id=str(chat_id), rol=rol, contenido=contenido))
         db.commit()
     except: pass
     finally:
@@ -120,6 +129,7 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_text = update.message.text
     last_interaction[chat_id] = datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).replace(tzinfo=None)
     registrar_evento(str(chat_id), f"Texto: {user_text}")
+    registrar_mensaje(str(chat_id), "user", user_text)
     if chat_id not in user_memory: user_memory[chat_id] = []
     user_memory[chat_id].append({"role": "user", "content": user_text})
     if len(user_memory[chat_id]) > 10: user_memory[chat_id] = user_memory[chat_id][-10:]
@@ -128,6 +138,7 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_chat_action(chat_id=chat_id, action='typing')
         response, updated_history = get_ai_response(user_memory[chat_id], str(chat_id))
         user_memory[chat_id] = updated_history
+        registrar_mensaje(str(chat_id), "assistant", response)
         await enviar_respuesta_jarvis(update, response)
     except Exception as e:
         await update.message.reply_text(text=f"Error: {str(e)}")
@@ -150,13 +161,14 @@ async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             os.remove(file_path)
             
         registrar_evento(str(chat_id), f"Voz (transcrito): {texto_transcrito}")
+        registrar_mensaje(str(chat_id), "user", f"[VOZ] {texto_transcrito}")
         if chat_id not in user_memory: user_memory[chat_id] = []
         user_memory[chat_id].append({"role": "user", "content": texto_transcrito})
         if len(user_memory[chat_id]) > 10: user_memory[chat_id] = user_memory[chat_id][-10:]
             
         response, updated_history = get_ai_response(user_memory[chat_id], str(chat_id))
         user_memory[chat_id] = updated_history
-        
+        registrar_mensaje(str(chat_id), "assistant", response)
         await enviar_respuesta_jarvis(update, response)
         
     except Exception as e:
