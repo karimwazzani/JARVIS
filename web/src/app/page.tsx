@@ -43,6 +43,9 @@ export default function Dashboard() {
   const [mtdExpense, setMtdExpense] = useState<number>(0);
   const [dbStatus, setDbStatus] = useState<string>("Offline");
   
+  const [logs, setLogs] = useState<any[]>([]);
+  const [propuestas, setPropuestas] = useState<any[]>([]);
+  
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
@@ -91,6 +94,8 @@ export default function Dashboard() {
         setTotalBalance(data.totalBalance);
         setMtdExpense(data.mtdExpense);
         setFinanceData(data.chartData);
+        setLogs(data.logs || []);
+        setPropuestas(data.propuestas || []);
         setDbStatus("Online");
       } catch(err) {
         setDbStatus("Failed");
@@ -172,6 +177,22 @@ export default function Dashboard() {
               </div>
             </div>
           </Card>
+
+          <Card title="CEREBRO ML - PROPUESTAS" icon={Cpu}>
+            <div className="space-y-4">
+              {propuestas.length > 0 ? propuestas.map((p, i) => (
+                <div key={i} className="p-3 rounded-lg bg-[var(--color-jarvis-panel)] border border-[var(--color-jarvis-orange)]/30 opacity-90 text-sm mb-2 glow-active shadow-[0_0_10px_rgba(249,115,22,0.1)]">
+                  <div className="flex justify-between font-mono text-[10px] text-[var(--color-jarvis-orange)] mb-1 uppercase tracking-widest">
+                    <span>REGLA PENDIENTE</span>
+                    <span>{new Date(p.fecha).toLocaleDateString('es-AR')}</span>
+                  </div>
+                  <p className="text-[#e5e7eb] leading-tight text-xs">{p.descripcion}</p>
+                </div>
+              )) : (
+                 <p className="text-sm font-mono text-center text-[var(--color-jarvis-muted)] p-4 opacity-70">Detectando patrones de comportamiento...</p>
+              )}
+            </div>
+          </Card>
         </div>
 
         {/* CENTER COLUMN (THE AI CORE) */}
@@ -251,7 +272,22 @@ export default function Dashboard() {
                   <Line type="monotone" dataKey="income" stroke="var(--color-jarvis-cyan)" strokeWidth={2} dot={false} />
                   <Line type="monotone" dataKey="expense" stroke="var(--color-jarvis-orange)" strokeWidth={2} dot={false} />
                 </LineChart>
-              </ResponsiveContainer>
+               </ResponsiveContainer>
+             </div>
+          </Card>
+
+          <Card title="TELEMETRÍA EN VIVO" icon={Activity}>
+             <div className="font-mono text-[10px] h-48 overflow-y-auto space-y-1 pr-2 tracking-tight overflow-x-hidden">
+                {logs.length > 0 ? logs.map((l, i) => (
+                  <div key={i} className="flex gap-2 border-b border-white/5 py-1.5 opacity-80 hover:opacity-100 transition-opacity">
+                    <span className="text-[var(--color-jarvis-cyan)] whitespace-nowrap">
+                      [{new Date(l.fecha).toLocaleTimeString('es-AR', {hour: '2-digit', minute:'2-digit', second:'2-digit'})}]
+                    </span>
+                    <span className="text-gray-300 break-words">{l.evento}</span>
+                  </div>
+                )) : (
+                  <p className="text-center text-[var(--color-jarvis-muted)] opacity-50 pt-4">No hay datos telemétricos.</p>
+                )}
              </div>
           </Card>
         </div>

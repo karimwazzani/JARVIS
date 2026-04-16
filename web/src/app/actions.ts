@@ -1,0 +1,99 @@
+"use server";
+
+import postgres from 'postgres';
+
+const sql = postgres(process.env.DATABASE_URL || '', { ssl: 'require' });
+
+export async function getFinancialData() {
+  try {
+    // 1. Get total balance
+    const balanceResult = await sql`
+      SELECT 
+        SUM(CASE WHEN tipo = 'ingreso' THEN monto ELSE 0 END) as total_ingresos,
+        SUM(CASE WHEN tipo = 'gasto' THEN monto ELSE 0 END) as total_gastos
+      FROM transacciones
+    `;
+    
+    const ingresos = balanceResult[0]?.total_ingresos || 0;
+    const gastos = balanceResult[0]?.total_gastos || 0;
+    const totalBalance = ingresos - gastos;
+
+    // 2. Get M.T.D Expense (Month to Date)
+    const mtdResult = await sql`
+      SELECT SUM(monto) as mtd_gasto
+      FROM transacciones 
+      WHERE tipo = 'gasto' AND date_trunc('month', fecha) = date_trunc('month', CURRENT_DATE)
+    `;
+    const mtdExpense = mtdResult[0]?.mtd_gasto || 0;
+
+    // 3. Get Last 7 days data for chart
+    const chartResult = await sql`
+      WITH RECURSIVE days AS (
+          SELECT current_date - 6 AS d
+          UNION ALL
+          SELECT d + 1 FROM days WHERE d < current_date
+      )
+      SELECT 
+          to_char(days.d, 'Dy') as name,
+          COALESCE(SUM(CASE WHEN t.tipo = 'ingreso' THEN t.monto ELSE 0 END), 0) as income,
+          COALESCE(SUM(CASE WHEN t.tipo = 'gasto' THEN t.monto ELSE 0 END), 0) as expense
+      FROM days
+      LEFT JOIN transacciones t ON date_trunc('day', t.fecha)::date = days.d
+      GROUP BY days.d
+      ORDER BY days.d;
+    `;
+    
+    const chartData = chartResult.map(row => ({
+      name: row.name,
+      income: Number(row.income),
+      expense: Number(row.expense)
+    }));
+
+    // 4. Obtener Telemetría (Últimos 10 eventos)
+    const logsResult = await sql`
+      SELECT evento, fecha
+      FROM log_eventos
+      ORDER BY fecha DESC
+      LIMIT 10
+    `;
+
+    // 5. Obtener Propuestas de Automatización pendientes
+    const propuestasResult = await sql`
+      SELECT descripcion, accion_tecnica, fecha_creacion
+      FROM propuestas_automatizacion
+      WHERE estado = 'pendiente'
+      ORDER BY fecha_creacion DESC
+      LIMIT 5
+    `;
+
+    return {
+      totalBalance,
+      mtdExpense,
+      chartData,
+      logs: logsResult.map(l => ({ evento: l.evento, fecha: l.fecha.toISOString() })),
+      propuestas: propuestasResult.map(p => ({ 
+        descripcion: p.descripcion, 
+        tecnica: p.accion_tecnica, 
+        fecha: p.fecha_creacion.toISOString() 
+      }))
+    };
+  } catch (error) {
+    console.error("Failed to fetch database data:", error);
+    // Return empty fallback info if connection fails
+    return {
+      totalBalance: 0,
+      mtdExpense: 0,
+      logs: [],
+      propuestas: [],
+      chartData: [
+        { name: 'Mon', income: 0, expense: 0 },
+        { name: 'Tue', income: 0, expense: 0 },
+        { name: 'Wed', income: 0, expense: 0 },
+        { name: 'Thu', income: 0, expense: 0 },
+        { name: 'Fri', income: 0, expense: 0 },
+        { name: 'Sat', income: 0, expense: 0 },
+        { name: 'Sun', income: 0, expense: 0 },
+      ]
+    };
+  }
+}
