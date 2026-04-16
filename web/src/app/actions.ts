@@ -163,11 +163,11 @@ export async function getSystemStatus() {
 
 export async function setSystemMode(modo: string) {
   try {
-    // Upsert logic for postgres (Railway)
+    // Usamos DELETE + INSERT para asegurar actualización sin depender de constraints de unicidad
+    await sql`DELETE FROM preferencias_usuario WHERE clave = 'modo_sistema'`;
     await sql`
       INSERT INTO preferencias_usuario (chat_id, clave, valor, fecha_actualizacion)
       VALUES ('general', 'modo_sistema', ${modo}, NOW())
-      ON CONFLICT (chat_id, clave) DO UPDATE SET valor = ${modo}, fecha_actualizacion = NOW()
     `;
     // Log the change
     await sql`INSERT INTO log_eventos (chat_id, evento, fecha) VALUES ('system', ${'Cambio de modo a: ' + modo}, NOW())`;

@@ -129,9 +129,13 @@ async def modo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     nuevo_modo = " ".join(context.args)
     db = SessionLocal()
-    pref = db.query(PreferenciaUsuario).filter_by(chat_id=str(chat_id), clave="modo_sistema").first()
-    if pref: pref.valor = nuevo_modo
-    else: db.add(PreferenciaUsuario(chat_id=str(chat_id), clave="modo_sistema", valor=nuevo_modo))
+    # Usamos 'general' para sincronizar con el Dashboard
+    pref = db.query(PreferenciaUsuario).filter_by(clave="modo_sistema").first()
+    if pref: 
+        pref.valor = nuevo_modo
+        pref.chat_id = "general" # Asegurar consistencia
+    else: 
+        db.add(PreferenciaUsuario(chat_id="general", clave="modo_sistema", valor=nuevo_modo))
     
     db.add(LogEvento(chat_id=str(chat_id), evento=f"Cambio de modo a: {nuevo_modo}"))
     db.commit()
