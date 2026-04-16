@@ -108,7 +108,7 @@ export default function Dashboard() {
   }, []);
 
   return (
-    <div className="min-h-screen p-4 md:p-8 flex flex-col gap-6 selection:bg-[var(--color-jarvis-cyan)] selection:text-black">
+    <div className="h-screen overflow-hidden p-4 md:p-6 flex flex-col gap-4 selection:bg-[var(--color-jarvis-cyan)] selection:text-black">
       
       {/* HEADER TOP BAR */}
       <header className="flex justify-between items-center glass-panel rounded-2xl px-6 py-4 neon-border">
@@ -136,11 +136,11 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {/* MAIN GRID */}
-      <main className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1">
+       {/* MAIN GRID */}
+      <main className="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 min-h-0 overflow-hidden">
         
         {/* LEFT COLUMN */}
-        <div className="lg:col-span-3 flex flex-col gap-6">
+        <div className="lg:col-span-3 flex flex-col gap-4 h-full overflow-hidden">
           <Card title="PROTOCOL STATUS" icon={Shield}>
             <ul className="space-y-4">
               <StatusCheck label="Centinela Security" status="Online" color="cyan" />
@@ -196,7 +196,7 @@ export default function Dashboard() {
         </div>
 
         {/* CENTER COLUMN (THE AI CORE) */}
-        <div className="lg:col-span-6 flex flex-col gap-6 items-center justify-center relative min-h-[400px]">
+        <div className="lg:col-span-6 flex flex-col gap-4 items-center justify-center relative h-full">
           {/* Orbital rings */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden">
             <div className="w-[80%] h-[80%] max-w-[500px] border border-[var(--color-jarvis-cyan)]/20 rounded-full animate-[spin_60s_linear_infinite]" />
@@ -220,7 +220,7 @@ export default function Dashboard() {
         </div>
 
         {/* RIGHT COLUMN */}
-        <div className="lg:col-span-3 flex flex-col gap-6">
+        <div className="lg:col-span-3 flex flex-col gap-4 h-full overflow-hidden">
           <Card title="CRYPTO WATCH" icon={Bitcoin}>
             <div className="mb-4">
                <div className="text-xs font-mono text-[var(--color-jarvis-muted)] mb-1">BTC/USDT</div>
@@ -277,7 +277,7 @@ export default function Dashboard() {
           </Card>
 
           <Card title="TELEMETRÍA EN VIVO" icon={Activity}>
-             <div className="font-mono text-[10px] h-48 overflow-y-auto space-y-1 pr-2 tracking-tight overflow-x-hidden">
+             <div className="font-mono text-[10px] flex-1 overflow-y-auto space-y-1 pr-2 tracking-tight overflow-x-hidden custom-scrollbar max-h-[250px]">
                 {logs.length > 0 ? logs.map((l, i) => (
                   <div key={i} className="flex gap-2 border-b border-white/5 py-1.5 opacity-80 hover:opacity-100 transition-opacity">
                     <span className="text-[var(--color-jarvis-cyan)] whitespace-nowrap">

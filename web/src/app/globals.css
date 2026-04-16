@@ -1,0 +1,78 @@
+@import "tailwindcss";
+
+@theme {
+  --color-jarvis-bg: #030712; /* very dark blue/black */
+  --color-jarvis-panel: rgba(17, 24, 39, 0.6); /* glassmorphism */
+  --color-jarvis-cyan: #06b6d4; /* glowing blue */
+  --color-jarvis-cyan-glow: rgba(6, 182, 212, 0.4);
+  --color-jarvis-orange: #f97316; /* secondary accent */
+  --color-jarvis-orange-glow: rgba(249, 115, 22, 0.4);
+  --color-jarvis-text: #e5e7eb;
+  --color-jarvis-muted: #9ca3af;
+}
+
+:root {
+  --background: var(--color-jarvis-bg);
+  --foreground: var(--color-jarvis-text);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), sans-serif;
+  overflow-x: hidden;
+  background-image: 
+    radial-gradient(circle at 15% 50%, rgba(6, 182, 212, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 85% 30%, rgba(249, 115, 22, 0.05) 0%, transparent 50%);
+}
+
+.glass-panel {
+  background: var(--color-jarvis-panel);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+}
+
+.neon-border {
+  position: relative;
+}
+
+.neon-border::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, var(--color-jarvis-cyan), transparent 40%, transparent 60%, var(--color-jarvis-orange));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Subtle pulse for critical data */
+@keyframes glow-pulse {
+  0% { box-shadow: 0 0 5px var(--color-jarvis-cyan-glow); }
+  50% { box-shadow: 0 0 15px var(--color-jarvis-cyan); }
+  100% { box-shadow: 0 0 5px var(--color-jarvis-cyan-glow); }
+}
+
+.glow-active {
+  animation: glow-pulse 2s infinite;
+}
+
+/* Custom Scrollbar for JARVIS Dashboard */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.02);
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--color-jarvis-cyan);
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--color-jarvis-orange);
+}
