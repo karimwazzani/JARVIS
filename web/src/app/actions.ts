@@ -59,11 +59,11 @@ export async function getFinancialData() {
 
     // 5. Obtener Propuestas de Automatización pendientes
     const propuestasResult = await sql`
-      SELECT descripcion, accion_tecnica, fecha_creacion
+      SELECT id, descripcion, accion_tecnica, fecha_creacion
       FROM propuestas_automatizacion
       WHERE estado = 'pendiente'
       ORDER BY fecha_creacion DESC
-      LIMIT 5
+      LIMIT 10
     `;
 
     return {
@@ -72,6 +72,7 @@ export async function getFinancialData() {
       chartData,
       logs: logsResult.map(l => ({ evento: l.evento, fecha: l.fecha.toISOString() })),
       propuestas: propuestasResult.map(p => ({ 
+        id: p.id,
         descripcion: p.descripcion, 
         tecnica: p.accion_tecnica, 
         fecha: p.fecha_creacion.toISOString() 
@@ -110,4 +111,39 @@ export async function getWeatherData() {
     return { temp: "--", cond: "Unavailable" };
   }
   return { temp: "--", cond: "Unavailable" };
+}
+
+export async function updatePropuestaStatus(id: number, status: 'aprobada' | 'rechazada') {
+  try {
+    await sql`
+      UPDATE propuestas_automatizacion 
+      SET estado = ${status}
+      WHERE id = ${id}
+    `;
+    return { success: true };
+  } catch (e) {
+    console.error("Error updating proposal:", e);
+    return { success: false };
+  }
+}
+
+export async function clearAllLogs() {
+  try {
+    await sql`DELETE FROM log_eventos`;
+    return { success: true };
+  } catch (e) {
+    return { success: false };
+  }
+}
+
+export async function addQuickTransaction(monto: number, descripcion: string, tipo: 'gasto' | 'ingreso' = 'gasto') {
+  try {
+    await sql`
+      INSERT INTO transacciones (tipo, monto, descripcion, fecha)
+      VALUES (${tipo}, ${monto}, ${descripcion}, NOW())
+    `;
+    return { success: true };
+  } catch (e) {
+    return { success: false };
+  }
 }

@@ -13,7 +13,7 @@ import {
 import clsx from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
-import { getFinancialData, getWeatherData } from './actions';
+import { getFinancialData, getWeatherData, updatePropuestaStatus, clearAllLogs, addQuickTransaction } from './actions';
 
 // Util for tailwind class merging
 function cn(...inputs: (string | undefined | null | false)[]) {
@@ -119,6 +119,29 @@ export default function Dashboard() {
     };
   }, []);
 
+  const handlePropuesta = async (id: number, status: 'aprobada' | 'rechazada') => {
+    const res = await updatePropuestaStatus(id, status);
+    if (res.success) {
+      setPropuestas(prev => prev.filter(p => p.id !== id));
+    }
+  };
+
+  const handleClearLogs = async () => {
+    if (confirm("¿Limpiar toda la telemetría del sistema?")) {
+      const res = await clearAllLogs();
+      if (res.success) setLogs([]);
+    }
+  };
+
+  const handleQuickGasto = async () => {
+    const montoStr = prompt("Monto del gasto:");
+    if (!montoStr) return;
+    const desc = prompt("Descripción:");
+    if (!desc) return;
+    const res = await addQuickTransaction(parseFloat(montoStr), desc);
+    if (res.success) alert("Gasto registrado. Se actualizará en breve.");
+  };
+
   return (
     <div className="h-screen overflow-hidden p-4 md:p-6 flex flex-col gap-4 selection:bg-[var(--color-jarvis-cyan)] selection:text-black">
       
@@ -161,8 +184,11 @@ export default function Dashboard() {
               <StatusCheck label="Backup en la Nube" status="Sincronizado" color="cyan" />
             </ul>
              <div className="mt-6 pt-4 border-t border-white/10">
-              <button className="w-full flex items-center justify-between px-4 py-2 glass-panel rounded hover:bg-white/5 transition-colors border border-white/5 group">
-                <span className="text-xs font-mono uppercase tracking-wider text-[var(--color-jarvis-orange)]">Ejecutar Protocolo</span>
+              <button 
+                onClick={handleQuickGasto}
+                className="w-full flex items-center justify-between px-4 py-2 glass-panel rounded hover:bg-white/5 transition-colors border border-white/5 group"
+              >
+                <span className="text-xs font-mono uppercase tracking-wider text-[var(--color-jarvis-orange)]">Registrar Gasto</span>
                 <ChevronRight size={16} className="text-[var(--color-jarvis-orange)] group-hover:translate-x-1 transition-transform" />
               </button>
             </div>
@@ -198,7 +224,17 @@ export default function Dashboard() {
                     <span>REGLA PENDIENTE</span>
                     <span>{new Date(p.fecha).toLocaleDateString('es-AR')}</span>
                   </div>
-                  <p className="text-[#e5e7eb] leading-tight text-xs">{p.descripcion}</p>
+                  <p className="text-[#e5e7eb] leading-tight text-xs mb-3">{p.descripcion}</p>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => handlePropuesta(p.id, 'aprobada')}
+                      className="flex-1 text-[10px] py-1 bg-green-500/10 border border-green-500/30 text-green-400 rounded hover:bg-green-500/20 transition-colors uppercase font-mono"
+                    >Aprobar</button>
+                    <button 
+                      onClick={() => handlePropuesta(p.id, 'rechazada')}
+                      className="flex-1 text-[10px] py-1 bg-red-500/10 border border-red-500/30 text-red-400 rounded hover:bg-red-500/20 transition-colors uppercase font-mono"
+                    >Ignorar</button>
+                  </div>
                 </div>
               )) : (
                  <p className="text-sm font-mono text-center text-[var(--color-jarvis-muted)] p-4 opacity-70">Detectando patrones de comportamiento...</p>
@@ -289,6 +325,13 @@ export default function Dashboard() {
           </Card>
 
           <Card title="TELEMETRÍA EN VIVO" icon={Activity}>
+             <div className="flex justify-between items-center mb-2 px-1">
+                <span className="text-[10px] font-mono text-[var(--color-jarvis-muted)] tracking-widest uppercase">Logs de Sistema</span>
+                <button 
+                  onClick={handleClearLogs}
+                  className="text-[9px] font-mono text-[var(--color-jarvis-orange)] hover:underline opacity-70"
+                >LIMPIAR TODO</button>
+             </div>
              <div className="font-mono text-[10px] flex-1 overflow-y-auto space-y-1 pr-2 tracking-tight overflow-x-hidden custom-scrollbar max-h-[250px]">
                 {logs.length > 0 ? logs.map((l, i) => (
                   <div key={i} className="flex gap-2 border-b border-white/5 py-1.5 opacity-80 hover:opacity-100 transition-opacity">
