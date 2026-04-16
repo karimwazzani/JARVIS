@@ -127,23 +127,23 @@ export default function Dashboard() {
         <div className="flex items-center gap-3">
           <Cpu className="text-[var(--color-jarvis-cyan)] glow-active" size={28} />
           <div>
-            <h1 className="text-xl font-bold tracking-widest text-[#e5e7eb] uppercase">JARVIS SYSTEM</h1>
-            <p className="text-xs text-[#06b6d4] font-mono tracking-wider">M.A.I.N. FRAME ONLINE</p>
+            <h1 className="text-xl font-bold tracking-widest text-[#e5e7eb] uppercase">SISTEMA JARVIS</h1>
+            <p className="text-xs text-[#06b6d4] font-mono tracking-wider">NÚCLEO CENTRAL ONLINE</p>
           </div>
         </div>
         
         <div className="flex items-center gap-6 font-mono text-sm">
           <div className="flex flex-col items-end">
-            <span className="text-[#9ca3af]">LOCAL TIME</span>
+            <span className="text-[#9ca3af]">HORA LOCAL</span>
             <span className="text-[#e5e7eb] text-lg font-semibold tabular-nums">
               {time.toLocaleTimeString('es-AR', { hour12: false })}
             </span>
           </div>
           <div className="h-10 w-px bg-white/10 hidden md:block" />
           <div className="hidden md:flex gap-4">
-            <StatusIcon icon={Wifi} active color="cyan" label="NET" />
+            <StatusIcon icon={Wifi} active color="cyan" label="RED" />
             <StatusIcon icon={Database} active={dbStatus === 'Online'} color="cyan" label="DB" />
-            <StatusIcon icon={Camera} active color="orange" label="SEC" />
+            <StatusIcon icon={Camera} active color="orange" label="SEG" />
           </div>
         </div>
       </header>
@@ -153,26 +153,26 @@ export default function Dashboard() {
         
         {/* LEFT COLUMN */}
         <div className="lg:col-span-3 flex flex-col gap-4 h-full overflow-y-auto pr-1 custom-scrollbar">
-          <Card title="PROTOCOL STATUS" icon={Shield}>
+          <Card title="ESTADO DE PROTOCOLO" icon={Shield}>
             <ul className="space-y-4">
-              <StatusCheck label="Centinela Security" status="Online" color="cyan" />
-              <StatusCheck label="Home Automation" status="Active" color="cyan" />
-              <StatusCheck label="Predictive Engine" status="Learning" color="orange" />
-              <StatusCheck label="Cloud Backups" status="Synced" color="cyan" />
+              <StatusCheck label="Seguridad Centinela" status="Online" color="cyan" />
+              <StatusCheck label="Domótica Hogar" status="Activo" color="cyan" />
+              <StatusCheck label="Motor Predictivo" status="Aprendiendo" color="orange" />
+              <StatusCheck label="Backup en la Nube" status="Sincronizado" color="cyan" />
             </ul>
              <div className="mt-6 pt-4 border-t border-white/10">
               <button className="w-full flex items-center justify-between px-4 py-2 glass-panel rounded hover:bg-white/5 transition-colors border border-white/5 group">
-                <span className="text-xs font-mono uppercase tracking-wider text-[var(--color-jarvis-orange)]">Initiate Protocol</span>
+                <span className="text-xs font-mono uppercase tracking-wider text-[var(--color-jarvis-orange)]">Ejecutar Protocolo</span>
                 <ChevronRight size={16} className="text-[var(--color-jarvis-orange)] group-hover:translate-x-1 transition-transform" />
               </button>
             </div>
           </Card>
 
-          <Card title="DAILY BRIEFING" icon={Cloud}>
+          <Card title="REPORTE DIARIO" icon={Cloud}>
             <div className="space-y-4">
               <div className="p-3 rounded-lg bg-[var(--color-jarvis-panel)] border border-white/5">
                 <div className="flex justify-between items-center mb-1">
-                  <span className="text-sm font-mono text-[var(--color-jarvis-muted)]">WEATHER</span>
+                  <span className="text-sm font-mono text-[var(--color-jarvis-muted)]">CLIMA</span>
                   <span className="text-xs text-[var(--color-jarvis-cyan)]">BUENOS AIRES</span>
                 </div>
                 <div className="text-2xl font-bold flex items-end gap-2">
@@ -183,7 +183,7 @@ export default function Dashboard() {
                 <div className="flex items-start gap-3">
                   <AlertCircle size={18} className="text-[var(--color-jarvis-orange)] mt-0.5 shrink-0" />
                   <p className="text-sm text-gray-300">
-                    Sir, your schedule is clear for today. I suggest reviewing the recent transactions.
+                    Señor, su agenda está despejada para hoy. Sugiero revisar las transacciones recientes.
                   </p>
                 </div>
               </div>
@@ -222,7 +222,7 @@ export default function Dashboard() {
           >
             <div className="absolute inset-0 rounded-full bg-[var(--color-jarvis-cyan)]/5 blur-xl group-hover:bg-[var(--color-jarvis-cyan)]/20 transition-colors duration-500" />
             <Mic className="text-[var(--color-jarvis-cyan)] mb-4" size={48} />
-            <h2 className="text-2xl font-light tracking-widest text-white">LISTENING</h2>
+            <h2 className="text-2xl font-light tracking-widest text-white">ESCUCHANDO</h2>
             <div className="flex gap-1 mt-4">
               {[1, 2, 3, 4, 5].map((i) => (
                 <div key={i} className="w-1.5 bg-[var(--color-jarvis-cyan)] rounded-full animate-pulse" style={{ height: `${Math.max(10, Math.random() * 24)}px`, animationDelay: `${i * 0.1}s` }} />
@@ -233,11 +233,11 @@ export default function Dashboard() {
 
         {/* RIGHT COLUMN */}
         <div className="lg:col-span-3 flex flex-col gap-4 h-full overflow-y-auto pr-1 custom-scrollbar">
-          <Card title="CRYPTO WATCH" icon={Bitcoin}>
+          <Card title="MONITOREO CRYPTO" icon={Bitcoin}>
             <div className="mb-4">
                <div className="text-xs font-mono text-[var(--color-jarvis-muted)] mb-1">BTC/USDT</div>
                <div className="text-3xl font-bold text-white flex items-center gap-2">
-                 {btcPrice ? `$${btcPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'Calculating...'}
+                 {btcPrice ? `$${btcPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'Calculando...'}
                  {btcPrice !== null && (
                    <span className={cn("text-sm flex items-center px-2 py-0.5 rounded", btcChange >= 0 ? "text-green-400 bg-green-400/10" : "text-red-400 bg-red-400/10")}>
                      {btcChange >= 0 ? <TrendingUp size={14} className="mr-1" /> : null}
@@ -261,14 +261,14 @@ export default function Dashboard() {
             </div>
           </Card>
 
-          <Card title="FINANCE METRICS" icon={Activity}>
+          <Card title="MÉTRICAS FINANCIERAS" icon={Activity}>
              <div className="flex justify-between items-center mb-6">
                <div>
-                  <div className="text-xs font-mono text-[#9ca3af]">TOTAL BALANCE</div>
+                  <div className="text-xs font-mono text-[#9ca3af]">BALANCE TOTAL</div>
                   <div className="text-xl text-white">${totalBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                </div>
                 <div className="text-right">
-                  <div className="text-xs font-mono text-[#9ca3af]">M.T.D EXPENSE</div>
+                  <div className="text-xs font-mono text-[#9ca3af]">GASTOS DEL MES</div>
                   <div className="text-xl text-[var(--color-jarvis-orange)]">${mtdExpense.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                </div>
              </div>
