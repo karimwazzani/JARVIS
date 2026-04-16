@@ -101,16 +101,16 @@ export async function getFinancialData() {
 
 export async function getWeatherData() {
   try {
-    const res = await fetch('https://wttr.in/Buenos%20Aires?format=%t|%C');
+    const res = await fetch('https://wttr.in/Buenos%20Aires?format=%t|%C|%h|%w');
     if (res.ok) {
       const txt = await res.text();
-      const [temp, cond] = txt.split('|');
-      return { temp, cond };
+      const [temp, cond, humidity, wind] = txt.split('|');
+      return { temp, cond, humidity, wind };
     }
   } catch (e) {
-    return { temp: "--", cond: "Unavailable" };
+    return { temp: "--", cond: "No disponible", humidity: "--", wind: "--" };
   }
-  return { temp: "--", cond: "Unavailable" };
+  return { temp: "--", cond: "No disponible", humidity: "--", wind: "--" };
 }
 
 export async function updatePropuestaStatus(id: number, status: 'aprobada' | 'rechazada') {

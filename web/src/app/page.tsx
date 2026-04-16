@@ -3,8 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Activity, Shield, Mic, Cpu, Cloud, Database, 
-  Wifi, Camera, BatteryCharging, ChevronRight, 
-  Bitcoin, TrendingUp, AlertCircle
+  Wifi, Camera, ChevronRight, 
+  Bitcoin, TrendingUp, AlertCircle, 
+  CloudRain, Sun, Wind, Droplets, CloudSun, Zap
 } from 'lucide-react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, 
@@ -45,7 +46,7 @@ export default function Dashboard() {
   
   const [logs, setLogs] = useState<any[]>([]);
   const [propuestas, setPropuestas] = useState<any[]>([]);
-  const [weather, setWeather] = useState({ temp: "--", cond: "Loading..." });
+  const [weather, setWeather] = useState({ temp: "--", cond: "Cargando...", humidity: "--", wind: "--" });
   
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
@@ -142,6 +143,15 @@ export default function Dashboard() {
     if (res.success) alert("Gasto registrado. Se actualizará en breve.");
   };
 
+  const getWeatherIcon = (cond: string) => {
+    const c = cond.toLowerCase();
+    if (c.includes('sun') || c.includes('clear') || c.includes('despejado')) return <Sun className="text-yellow-400" />;
+    if (c.includes('rain') || c.includes('shower') || c.includes('lluvia')) return <CloudRain className="text-blue-400" />;
+    if (c.includes('storm')) return <Zap className="text-yellow-500" />;
+    if (c.includes('cloud') && (c.includes('sun') || c.includes('partly'))) return <CloudSun className="text-orange-300" />;
+    return <Cloud className="text-gray-400" />;
+  };
+
   return (
     <div className="h-screen overflow-hidden p-4 md:p-6 flex flex-col gap-4 selection:bg-[var(--color-jarvis-cyan)] selection:text-black">
       
@@ -197,12 +207,39 @@ export default function Dashboard() {
           <Card title="REPORTE DIARIO" icon={Cloud}>
             <div className="space-y-4">
               <div className="p-3 rounded-lg bg-[var(--color-jarvis-panel)] border border-white/5">
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-sm font-mono text-[var(--color-jarvis-muted)]">CLIMA</span>
-                  <span className="text-xs text-[var(--color-jarvis-cyan)]">BUENOS AIRES</span>
+                <div className="flex justify-between items-start mb-2">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-mono text-[var(--color-jarvis-muted)] uppercase mb-1">Cielo y Clima</span>
+                    <div className="flex items-center gap-3">
+                      <div className="bg-white/5 p-2 rounded-lg border border-white/5 glow-active">
+                        {getWeatherIcon(weather.cond)}
+                      </div>
+                      <div className="text-3xl font-bold flex items-baseline gap-1">
+                        {weather.temp.replace('+', '')}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xs text-[var(--color-jarvis-cyan)] font-mono block">BUENOS AIRES</span>
+                    <span className="text-[10px] text-[var(--color-jarvis-muted)] uppercase tracking-tighter">{weather.cond}</span>
+                  </div>
                 </div>
-                <div className="text-2xl font-bold flex items-end gap-2">
-                  {weather.temp} <span className="text-sm font-normal text-[var(--color-jarvis-muted)] mb-1 uppercase tracking-tight">{weather.cond}</span>
+                
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <div className="flex items-center gap-2 bg-white/5 p-2 rounded-lg border border-white/5">
+                    <Droplets size={14} className="text-blue-400" />
+                    <div className="flex flex-col">
+                      <span className="text-[8px] text-gray-500 uppercase">Humedad</span>
+                      <span className="text-xs font-mono">{weather.humidity}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 bg-white/5 p-2 rounded-lg border border-white/5">
+                    <Wind size={14} className="text-gray-400" />
+                    <div className="flex flex-col">
+                      <span className="text-[8px] text-gray-500 uppercase">Viento</span>
+                      <span className="text-xs font-mono">{weather.wind}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
               <div className="p-3 rounded-lg bg-[var(--color-jarvis-panel)] border border-white/5">
