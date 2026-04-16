@@ -3,7 +3,8 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, fil
 from src.bot_handlers import (
     start_handler, help_handler, text_handler, voice_handler, location_handler,
     gasto_handler, ingreso_handler, resumen_handler, check_reminders, check_sensores,
-    check_bienestar, reporte_semanal, analisis_predictivo, proactive_morning_briefing
+    check_bienestar, reporte_semanal, analisis_predictivo, proactive_morning_briefing,
+    sethome_handler, modo_handler
 )
 from src.learning_engine import run_learning_engine
 
@@ -20,6 +21,8 @@ def create_app():
     application.add_handler(CommandHandler('gasto', gasto_handler))
     application.add_handler(CommandHandler('ingreso', ingreso_handler))
     application.add_handler(CommandHandler('resumen', resumen_handler))
+    application.add_handler(CommandHandler('sethome', sethome_handler))
+    application.add_handler(CommandHandler('modo', modo_handler))
     
     application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), text_handler))
     application.add_handler(MessageHandler(filters.VOICE, voice_handler))

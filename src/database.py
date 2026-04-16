@@ -80,8 +80,8 @@ class PreferenciaUsuario(Base):
     __tablename__ = "preferencias_usuario"
     id = Column(Integer, primary_key=True, index=True)
     chat_id = Column(String, index=True)
-    clave = Column(String, index=True) # Ej: "modo_noche_inicio"
-    valor = Column(String)             # Ej: "22:00"
+    clave = Column(String, index=True) # Ej: "modo_noche_inicio", "home_lat", "home_lon", "modo_sistema"
+    valor = Column(String)             # Ej: "22:00", "-34.60", "Modo Centinela"
     fecha_actualizacion = Column(DateTime, default=get_now, onupdate=get_now)
 
 class HabitoYPatron(Base):

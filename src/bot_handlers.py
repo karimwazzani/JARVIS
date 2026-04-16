@@ -1,4 +1,5 @@
 import os
+import math
 from telegram import Update
 from telegram.ext import ContextTypes
 from src.ai_agent import get_ai_response, transcribir_audio, ejecutar_funcion, generar_audio_respuesta
@@ -80,10 +81,62 @@ async def location_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.location:
         lat = update.message.location.latitude
         lon = update.message.location.longitude
-        registrar_evento(str(chat_id), f"Compartió ubicación: L{lat}, L{lon}")
-        if chat_id not in user_memory: user_memory[chat_id] = []
-        user_memory[chat_id].append({"role": "user", "content": f"Esta es mi ubicación actual GPS: Lat {lat}, Lon {lon}"})
-        await update.message.reply_text("Ubicación recibida por JARVIS.")
+        
+        db = SessionLocal()
+        home_lat = db.query(PreferenciaUsuario).filter_by(chat_id=str(chat_id), clave="home_lat").first()
+        home_lon = db.query(PreferenciaUsuario).filter_by(chat_id=str(chat_id), clave="home_lon").first()
+        
+        proximidad_msg = ""
+        if home_lat and home_lon:
+            # Distancia aproximada (muy simplificada para radio de ~1km)
+            dist = math.sqrt((lat - float(home_lat.valor))**2 + (lon - float(home_lon.valor))**2)
+            if dist < 0.005: # Aprox 500 metros
+                proximidad_msg = "\n📍 *JARVIS:* Detecto que está cerca de casa, Señor. ¿Desea que active el Modo Hogar?"
+                registrar_evento(str(chat_id), "Usuario detectado cerca de Casa")
+        
+        registrar_evento(str(chat_id), f"Compartió ubicación: {lat}, {lon}")
+        db.close()
+        
+        await update.message.reply_text(f"Ubicación recibida por JARVIS.{proximidad_msg}", parse_mode='Markdown')
+
+async def sethome_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    if not update.message.reply_to_message or not update.message.reply_to_message.location:
+        await update.message.reply_text("Señor, debe responder a un mensaje de ubicación con /sethome para establecer su base.")
+        return
+    
+    loc = update.message.reply_to_message.location
+    db = SessionLocal()
+    # Guardar lat
+    plat = db.query(PreferenciaUsuario).filter_by(chat_id=str(chat_id), clave="home_lat").first()
+    if plat: plat.valor = str(loc.latitude)
+    else: db.add(PreferenciaUsuario(chat_id=str(chat_id), clave="home_lat", valor=str(loc.latitude)))
+    
+    # Guardar lon
+    plon = db.query(PreferenciaUsuario).filter_by(chat_id=str(chat_id), clave="home_lon").first()
+    if plon: plon.valor = str(loc.longitude)
+    else: db.add(PreferenciaUsuario(chat_id=str(chat_id), clave="home_lon", valor=str(loc.longitude)))
+    
+    db.commit()
+    db.close()
+    await update.message.reply_text("📍 *Base establecida.* JARVIS ahora conoce la ubicación de su residencia.", parse_mode='Markdown')
+
+async def modo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    if not context.args:
+        await update.message.reply_text("Dígame el modo, Señor. Ejemplo: `/modo Centinela` o `/modo Relax`.", parse_mode='Markdown')
+        return
+    
+    nuevo_modo = " ".join(context.args)
+    db = SessionLocal()
+    pref = db.query(PreferenciaUsuario).filter_by(chat_id=str(chat_id), clave="modo_sistema").first()
+    if pref: pref.valor = nuevo_modo
+    else: db.add(PreferenciaUsuario(chat_id=str(chat_id), clave="modo_sistema", valor=nuevo_modo))
+    
+    db.add(LogEvento(chat_id=str(chat_id), evento=f"Cambio de modo a: {nuevo_modo}"))
+    db.commit()
+    db.close()
+    await update.message.reply_text(f"⚙️ *SISTEMA:* Iniciando {nuevo_modo}. Ajustando protocolos...", parse_mode='Markdown')
 
 async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     help_text = (

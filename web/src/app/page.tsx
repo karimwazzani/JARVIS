@@ -14,7 +14,10 @@ import {
 import clsx from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
-import { getFinancialData, getWeatherData, updatePropuestaStatus, clearAllLogs, addQuickTransaction } from './actions';
+import { 
+  getFinancialData, getWeatherData, updatePropuestaStatus, 
+  clearAllLogs, addQuickTransaction, getSystemStatus, setSystemMode 
+} from './actions';
 
 // Util for tailwind class merging
 function cn(...inputs: (string | undefined | null | false)[]) {
@@ -47,6 +50,7 @@ export default function Dashboard() {
   const [logs, setLogs] = useState<any[]>([]);
   const [propuestas, setPropuestas] = useState<any[]>([]);
   const [weather, setWeather] = useState({ temp: "--", cond: "Cargando...", humidity: "--", wind: "--" });
+  const [systemMode, setSystemModeState] = useState("Estándar");
   
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
@@ -111,12 +115,20 @@ export default function Dashboard() {
 
     fetchDb();
     fetchWeather();
+    const fetchMode = async () => {
+      const m = await getSystemStatus();
+      setSystemModeState(m);
+    };
+    fetchMode();
+
     // Refresh DB logic every 30 secs
     const dbInterval = setInterval(fetchDb, 30000);
     const weatherInterval = setInterval(fetchWeather, 300000);
+    const modeInterval = setInterval(fetchMode, 10000);
     return () => {
       clearInterval(dbInterval);
       clearInterval(weatherInterval);
+      clearInterval(modeInterval);
     };
   }, []);
 
@@ -132,6 +144,11 @@ export default function Dashboard() {
       const res = await clearAllLogs();
       if (res.success) setLogs([]);
     }
+  };
+
+  const handleChangeMode = async (m: string) => {
+    const res = await setSystemMode(m);
+    if (res.success) setSystemModeState(m);
   };
 
   const handleQuickTransaction = async (tipo: 'gasto' | 'ingreso') => {
@@ -162,7 +179,22 @@ export default function Dashboard() {
           <Cpu className="text-[var(--color-jarvis-cyan)] glow-active" size={28} />
           <div>
             <h1 className="text-xl font-bold tracking-widest text-[#e5e7eb] uppercase">SISTEMA JARVIS</h1>
-            <p className="text-xs text-[#06b6d4] font-mono tracking-wider">NÚCLEO CENTRAL ONLINE</p>
+            <div className="flex items-center gap-1 text-[var(--color-jarvis-cyan)] font-mono text-[10px] tracking-wider">
+               <span className="opacity-50">ESTADO:</span>
+               <select 
+                 value={systemMode}
+                 onChange={(e) => handleChangeMode(e.target.value)}
+                 className="bg-transparent border-none p-0 focus:ring-0 cursor-pointer uppercase appearance-none"
+                 style={{ WebkitAppearance: 'none' }}
+               >
+                 <option value="Estándar">ESTÁNDAR</option>
+                 <option value="Centinela">CENTINELA</option>
+                 <option value="Relax">RELAX</option>
+                 <option value="Ejecutor">EJECUTOR</option>
+                 <option value="Fiesta">FIESTA</option>
+               </select>
+               <div className="w-1.5 h-1.5 rounded-full bg-[var(--color-jarvis-cyan)] animate-pulse shadow-[0_0_8px_var(--color-jarvis-cyan)]" />
+            </div>
           </div>
         </div>
         

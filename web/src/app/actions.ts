@@ -147,3 +147,33 @@ export async function addQuickTransaction(monto: number, descripcion: string, ti
     return { success: false };
   }
 }
+
+export async function getSystemStatus() {
+  try {
+    const res = await sql`
+      SELECT valor FROM preferencias_usuario 
+      WHERE clave = 'modo_sistema'
+      ORDER BY fecha_actualizacion DESC LIMIT 1
+    `;
+    return res[0]?.valor || "Estándar";
+  } catch (e) {
+    return "Estándar";
+  }
+}
+
+export async function setSystemMode(modo: string) {
+  try {
+    // Upsert logic for postgres (Railway)
+    await sql`
+      INSERT INTO preferencias_usuario (chat_id, clave, valor, fecha_actualizacion)
+      VALUES ('general', 'modo_sistema', ${modo}, NOW())
+      ON CONFLICT (chat_id, clave) DO UPDATE SET valor = ${modo}, fecha_actualizacion = NOW()
+    `;
+    // Log the change
+    await sql`INSERT INTO log_eventos (chat_id, evento, fecha) VALUES ('system', ${'Cambio de modo a: ' + modo}, NOW())`;
+    return { success: true };
+  } catch (e) {
+    console.error("Error setting mode:", e);
+    return { success: false };
+  }
+}
