@@ -134,13 +134,14 @@ export default function Dashboard() {
     }
   };
 
-  const handleQuickGasto = async () => {
-    const montoStr = prompt("Monto del gasto:");
+  const handleQuickTransaction = async (tipo: 'gasto' | 'ingreso') => {
+    const label = tipo === 'gasto' ? 'Monto del gasto:' : 'Monto del ingreso:';
+    const montoStr = prompt(label);
     if (!montoStr) return;
     const desc = prompt("Descripción:");
     if (!desc) return;
-    const res = await addQuickTransaction(parseFloat(montoStr), desc);
-    if (res.success) alert("Gasto registrado. Se actualizará en breve.");
+    const res = await addQuickTransaction(parseFloat(montoStr), desc, tipo);
+    if (res.success) alert(`${tipo.charAt(0).toUpperCase() + tipo.slice(1)} registrado correctamente.`);
   };
 
   const getWeatherIcon = (cond: string) => {
@@ -193,9 +194,16 @@ export default function Dashboard() {
               <StatusCheck label="Motor Predictivo" status="Aprendiendo" color="orange" />
               <StatusCheck label="Backup en la Nube" status="Sincronizado" color="cyan" />
             </ul>
-             <div className="mt-6 pt-4 border-t border-white/10">
+             <div className="mt-6 pt-4 border-t border-white/10 flex flex-col gap-2">
               <button 
-                onClick={handleQuickGasto}
+                onClick={() => handleQuickTransaction('ingreso')}
+                className="w-full flex items-center justify-between px-4 py-2 glass-panel rounded hover:bg-white/5 transition-colors border border-white/5 group"
+              >
+                <span className="text-xs font-mono uppercase tracking-wider text-[var(--color-jarvis-cyan)]">Registrar Ingreso</span>
+                <ChevronRight size={16} className="text-[var(--color-jarvis-cyan)] group-hover:translate-x-1 transition-transform" />
+              </button>
+              <button 
+                onClick={() => handleQuickTransaction('gasto')}
                 className="w-full flex items-center justify-between px-4 py-2 glass-panel rounded hover:bg-white/5 transition-colors border border-white/5 group"
               >
                 <span className="text-xs font-mono uppercase tracking-wider text-[var(--color-jarvis-orange)]">Registrar Gasto</span>
