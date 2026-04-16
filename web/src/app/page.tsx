@@ -140,7 +140,7 @@ export default function Dashboard() {
       <main className="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 min-h-0 overflow-hidden">
         
         {/* LEFT COLUMN */}
-        <div className="lg:col-span-3 flex flex-col gap-4 h-full overflow-hidden">
+        <div className="lg:col-span-3 flex flex-col gap-4 h-full overflow-y-auto pr-1 custom-scrollbar">
           <Card title="PROTOCOL STATUS" icon={Shield}>
             <ul className="space-y-4">
               <StatusCheck label="Centinela Security" status="Online" color="cyan" />
@@ -220,7 +220,7 @@ export default function Dashboard() {
         </div>
 
         {/* RIGHT COLUMN */}
-        <div className="lg:col-span-3 flex flex-col gap-4 h-full overflow-hidden">
+        <div className="lg:col-span-3 flex flex-col gap-4 h-full overflow-y-auto pr-1 custom-scrollbar">
           <Card title="CRYPTO WATCH" icon={Bitcoin}>
             <div className="mb-4">
                <div className="text-xs font-mono text-[var(--color-jarvis-muted)] mb-1">BTC/USDT</div>
@@ -301,7 +301,7 @@ export default function Dashboard() {
 
 function Card({ title, icon: Icon, children }: { title: string, icon: any, children: React.ReactNode }) {
   return (
-    <div className="glass-panel rounded-2xl p-6 flex flex-col relative overflow-hidden group">
+    <div className="glass-panel rounded-2xl p-4 flex flex-col relative overflow-hidden group shrink-0">
       <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-[var(--color-jarvis-cyan)] to-transparent opacity-50" />
       <div className="flex items-center justify-between mb-4 pb-2 border-b border-white/10 border-dashed">
         <h3 className="font-mono text-sm tracking-widest text-[#e5e7eb]">{title}</h3>
