@@ -395,3 +395,26 @@ async def proactive_morning_briefing(context: ContextTypes.DEFAULT_TYPE):
         print(f"Error en briefing matutino: {e}")
     finally:
         db.close()
+
+async def sync_google_calendar(context: ContextTypes.DEFAULT_TYPE):
+    """Sincroniza los eventos de Google Calendar con la base de datos para el Dashboard."""
+    from src.calendar_service import get_next_events
+    from src.database import EventoCalendario
+    db = SessionLocal()
+    try:
+        events = get_next_events(10)
+        if events:
+            # Reemplazar caché de eventos
+            db.query(EventoCalendario).delete()
+            for ev in events:
+                db.add(EventoCalendario(
+                    chat_id="general",
+                    titulo=ev['summary'],
+                    fecha_hora=ev['start'],
+                    ubicacion=ev['location']
+                ))
+            db.commit()
+    except Exception as e:
+        print(f"Error syncing calendar: {e}")
+    finally:
+        db.close()

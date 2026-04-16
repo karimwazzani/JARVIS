@@ -49,6 +49,7 @@ export default function Dashboard() {
   
   const [logs, setLogs] = useState<any[]>([]);
   const [propuestas, setPropuestas] = useState<any[]>([]);
+  const [calendar, setCalendar] = useState<any[]>([]);
   const [weather, setWeather] = useState({ temp: "--", cond: "Cargando...", humidity: "--", wind: "--" });
   const [systemMode, setSystemModeState] = useState("Estándar");
   
@@ -102,6 +103,7 @@ export default function Dashboard() {
         setFinanceData(data.chartData);
         setLogs(data.logs || []);
         setPropuestas(data.propuestas || []);
+        setCalendar(data.calendar || []);
         setDbStatus("Online");
       } catch(err) {
         setDbStatus("Failed");
@@ -346,6 +348,31 @@ export default function Dashboard() {
 
         {/* RIGHT COLUMN */}
         <div className="lg:col-span-3 flex flex-col gap-4 h-full overflow-y-auto pr-1 custom-scrollbar">
+          <Card title="PRÓXIMOS EVENTOS" icon={AlertCircle}>
+            <div className="space-y-3">
+              {calendar.length > 0 ? calendar.map((ev, i) => (
+                <div key={i} className="flex gap-3 items-start p-2 rounded bg-white/5 border border-white/5">
+                  <div className="flex flex-col items-center justify-center bg-[var(--color-jarvis-cyan)]/10 p-1.5 rounded min-w-[40px]">
+                    <span className="text-[10px] font-bold text-[var(--color-jarvis-cyan)] uppercase">
+                      {new Date(ev.fecha).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  <div className="flex flex-col flex-1 min-w-0">
+                    <span className="text-xs font-semibold text-white truncate">{ev.titulo}</span>
+                    <span className="text-[9px] text-[var(--color-jarvis-muted)] uppercase truncate">
+                      {new Date(ev.fecha).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })} {ev.ubicacion ? `• ${ev.ubicacion}` : ''}
+                    </span>
+                  </div>
+                </div>
+              )) : (
+                <div className="text-center py-4 opacity-50 grayscale">
+                  <p className="text-[10px] font-mono mb-1">CALENDARIO EN ESPERA</p>
+                  <p className="text-[8px] uppercase tracking-tighter">Conecte credentials.json para sincronizar citas reales</p>
+                </div>
+              )}
+            </div>
+          </Card>
+
           <Card title="MONITOREO CRYPTO" icon={Bitcoin}>
             <div className="mb-4">
                <div className="text-xs font-mono text-[var(--color-jarvis-muted)] mb-1">BTC/USDT</div>

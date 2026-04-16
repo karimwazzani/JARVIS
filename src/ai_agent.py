@@ -64,6 +64,19 @@ tools = [
     {
         "type": "function",
         "function": {
+            "name": "consultar_google_calendar",
+            "description": "Obtiene los próximos eventos programados en el calendario de Google real del usuario.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "limite": {"type": "integer", "default": 5}
+                }
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "editar_transaccion",
             "description": "Modifica una transacción existente.",
             "parameters": {
@@ -340,6 +353,12 @@ def ejecutar_funcion(nombre: str, argumentos: dict) -> str:
             db.delete(t)
             db.commit()
             return f"ID {id_trans} eliminada exitosamente."
+            
+        elif nombre == "consultar_google_calendar":
+            events = get_next_events(argumentos.get("limite", 5))
+            if not events:
+                return "No se encontraron eventos o el calendario no está conectado (falta credentials.json)."
+            return json.dumps(events)
             
         elif nombre == "editar_transaccion":
             id_trans = argumentos["id"]

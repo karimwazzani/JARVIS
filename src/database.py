@@ -89,8 +89,19 @@ class HabitoYPatron(Base):
     __tablename__ = "habitos_y_patrones"
     id = Column(Integer, primary_key=True, index=True)
     chat_id = Column(String, index=True)
-    descripcion = Column(String) # Ej: "Suele pedir resumen financiero los viernes"
-    confianza = Column(Float, default=1.0) # Nivel de certeza de JARVIS
+    patron = Column(String)
+    confianza = Column(Float)
+    fecha_deteccion = Column(DateTime, default=get_now)
+
+class EventoCalendario(Base):
+    """Caché de eventos de Google Calendar para el Dashboard."""
+    __tablename__ = "eventos_calendario"
+    id = Column(Integer, primary_key=True, index=True)
+    chat_id = Column(String, index=True)
+    titulo = Column(String)
+    fecha_hora = Column(DateTime)
+    ubicacion = Column(String, nullable=True)
+    last_sync = Column(DateTime, default=get_now) # Nivel de certeza de JARVIS
     fecha_deteccion = Column(DateTime, default=get_now)
 
 class LogEvento(Base):

@@ -66,6 +66,15 @@ export async function getFinancialData() {
       LIMIT 10
     `;
 
+    // 6. Obtener próximos eventos de calendario
+    const calendarResult = await sql`
+      SELECT titulo, fecha_hora, ubicacion
+      FROM eventos_calendario
+      WHERE fecha_hora >= NOW()
+      ORDER BY fecha_hora ASC
+      LIMIT 5
+    `;
+
     return {
       totalBalance,
       mtdExpense,
@@ -76,6 +85,11 @@ export async function getFinancialData() {
         descripcion: p.descripcion, 
         tecnica: p.accion_tecnica, 
         fecha: p.fecha_creacion.toISOString() 
+      })),
+      calendar: calendarResult.map(e => ({
+        titulo: e.titulo,
+        fecha: e.fecha_hora.toISOString(),
+        ubicacion: e.ubicacion
       }))
     };
   } catch (error) {
