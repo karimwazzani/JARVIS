@@ -97,3 +97,17 @@ export async function getFinancialData() {
     };
   }
 }
+
+export async function getWeatherData() {
+  try {
+    const res = await fetch('https://wttr.in/Buenos%20Aires?format=%t|%C');
+    if (res.ok) {
+      const txt = await res.text();
+      const [temp, cond] = txt.split('|');
+      return { temp, cond };
+    }
+  } catch (e) {
+    return { temp: "--", cond: "Unavailable" };
+  }
+  return { temp: "--", cond: "Unavailable" };
+}

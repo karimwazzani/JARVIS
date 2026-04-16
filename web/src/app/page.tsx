@@ -13,7 +13,7 @@ import {
 import clsx from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
-import { getFinancialData } from './actions';
+import { getFinancialData, getWeatherData } from './actions';
 
 // Util for tailwind class merging
 function cn(...inputs: (string | undefined | null | false)[]) {
@@ -45,6 +45,7 @@ export default function Dashboard() {
   
   const [logs, setLogs] = useState<any[]>([]);
   const [propuestas, setPropuestas] = useState<any[]>([]);
+  const [weather, setWeather] = useState({ temp: "--", cond: "Loading..." });
   
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
@@ -101,10 +102,21 @@ export default function Dashboard() {
         setDbStatus("Failed");
       }
     };
+
+    const fetchWeather = async () => {
+      const data = await getWeatherData();
+      setWeather(data);
+    };
+
     fetchDb();
+    fetchWeather();
     // Refresh DB logic every 30 secs
     const dbInterval = setInterval(fetchDb, 30000);
-    return () => clearInterval(dbInterval);
+    const weatherInterval = setInterval(fetchWeather, 300000);
+    return () => {
+      clearInterval(dbInterval);
+      clearInterval(weatherInterval);
+    };
   }, []);
 
   return (
@@ -164,7 +176,7 @@ export default function Dashboard() {
                   <span className="text-xs text-[var(--color-jarvis-cyan)]">BUENOS AIRES</span>
                 </div>
                 <div className="text-2xl font-bold flex items-end gap-2">
-                  18°C <span className="text-sm font-normal text-[var(--color-jarvis-muted)] mb-1">Clear</span>
+                  {weather.temp} <span className="text-sm font-normal text-[var(--color-jarvis-muted)] mb-1 uppercase tracking-tight">{weather.cond}</span>
                 </div>
               </div>
               <div className="p-3 rounded-lg bg-[var(--color-jarvis-panel)] border border-white/5">
