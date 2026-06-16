@@ -1,6 +1,6 @@
 import sys
 import time
-from database import SessionLocal, SensorAlert
+from src.database import SessionLocal, SensorAlert
 
 def main():
     print("=== SIMULADOR DE HARDWARE IOT (JARVIS) ===")

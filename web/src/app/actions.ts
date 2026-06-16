@@ -4,6 +4,37 @@ import postgres from 'postgres';
 
 const sql = postgres(process.env.DATABASE_URL || '', { ssl: 'require' });
 
+export type FinanceChartPoint = {
+  name: string;
+  income: number;
+  expense: number;
+};
+
+export type LogEntry = {
+  evento: string;
+  fecha: string;
+};
+
+export type ProposalEntry = {
+  id: number;
+  descripcion: string;
+  tecnica: string | null;
+  fecha: string;
+};
+
+export type CalendarEntry = {
+  titulo: string;
+  fecha: string;
+  ubicacion: string | null;
+};
+
+export type WeatherData = {
+  temp: string;
+  cond: string;
+  humidity: string;
+  wind: string;
+};
+
 export async function getFinancialData() {
   try {
     // 1. Get total balance
@@ -121,7 +152,7 @@ export async function getWeatherData() {
       const [temp, cond, humidity, wind] = txt.split('|');
       return { temp, cond, humidity, wind };
     }
-  } catch (e) {
+  } catch {
     return { temp: "--", cond: "No disponible", humidity: "--", wind: "--" };
   }
   return { temp: "--", cond: "No disponible", humidity: "--", wind: "--" };
@@ -145,7 +176,7 @@ export async function clearAllLogs() {
   try {
     await sql`DELETE FROM log_eventos`;
     return { success: true };
-  } catch (e) {
+  } catch {
     return { success: false };
   }
 }
@@ -157,7 +188,7 @@ export async function addQuickTransaction(monto: number, descripcion: string, ti
       VALUES (${tipo}, ${monto}, ${descripcion}, NOW())
     `;
     return { success: true };
-  } catch (e) {
+  } catch {
     return { success: false };
   }
 }
@@ -170,7 +201,7 @@ export async function getSystemStatus() {
       ORDER BY fecha_actualizacion DESC LIMIT 1
     `;
     return res[0]?.valor || "Estándar";
-  } catch (e) {
+  } catch {
     return "Estándar";
   }
 }

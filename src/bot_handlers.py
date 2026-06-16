@@ -1,10 +1,12 @@
 import os
 import math
+from functools import wraps
 from telegram import Update
 from telegram.ext import ContextTypes
 from src.ai_agent import get_ai_response, transcribir_audio, ejecutar_funcion, generar_audio_respuesta
 from src.database import SessionLocal, Transaccion, Recordatorio, SensorAlert, Tarea, PreferenciaUsuario, HabitoYPatron, LogEvento, PropuestaAutomatizacion, Conversacion
 from src.external_services import get_btc_price, get_weather, get_top_news
+from src.security import is_chat_authorized
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from sqlalchemy import func
@@ -12,6 +14,22 @@ from sqlalchemy import func
 # Memoria temporal
 user_memory = {} 
 last_interaction = {}
+
+async def ensure_authorized(update: Update) -> bool:
+    chat_id = update.effective_chat.id if update.effective_chat else None
+    if is_chat_authorized(chat_id):
+        return True
+    if update.message:
+        await update.message.reply_text("Acceso no autorizado.")
+    return False
+
+def authorized_handler(func):
+    @wraps(func)
+    async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
+        if not await ensure_authorized(update):
+            return
+        return await func(update, context, *args, **kwargs)
+    return wrapper
 
 def registrar_evento(chat_id: str, evento: str):
     try:
@@ -31,6 +49,7 @@ def registrar_mensaje(chat_id: str, rol: str, contenido: str):
     finally:
         db.close()
 
+@authorized_handler
 async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "¡Hola! Soy JARVIS, tu asistente analítico.\n\n"
@@ -75,6 +94,7 @@ async def enviar_respuesta_jarvis(update: Update, response: str, es_voz: bool = 
     # Fallback to text (or user sent text)
     await update.message.reply_text(text=response, parse_mode='Markdown')
     
+@authorized_handler
 async def location_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     last_interaction[chat_id] = datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).replace(tzinfo=None)
@@ -99,6 +119,7 @@ async def location_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         await update.message.reply_text(f"Ubicación recibida por JARVIS.{proximidad_msg}", parse_mode='Markdown')
 
+@authorized_handler
 async def sethome_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     if not update.message.reply_to_message or not update.message.reply_to_message.location:
@@ -121,6 +142,7 @@ async def sethome_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     db.close()
     await update.message.reply_text("📍 *Base establecida.* JARVIS ahora conoce la ubicación de su residencia.", parse_mode='Markdown')
 
+@authorized_handler
 async def modo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     if not context.args:
@@ -142,6 +164,7 @@ async def modo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     db.close()
     await update.message.reply_text(f"⚙️ *SISTEMA:* Iniciando {nuevo_modo}. Ajustando protocolos...", parse_mode='Markdown')
 
+@authorized_handler
 async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     help_text = (
         "🧠 *Notas de Voz y Texto (IA):*\n"
@@ -153,6 +176,7 @@ async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text(help_text, parse_mode='Markdown')
 
+@authorized_handler
 async def gasto_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         if len(context.args) < 2:
@@ -169,6 +193,7 @@ async def gasto_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except ValueError:
         await update.message.reply_text("❌ El monto necesita ser un número.")
 
+@authorized_handler
 async def ingreso_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         if len(context.args) < 2:
@@ -185,6 +210,7 @@ async def ingreso_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except ValueError:
         await update.message.reply_text("❌ El monto necesita ser un número.")
 
+@authorized_handler
 async def resumen_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     db = SessionLocal()
     gastos = db.query(func.sum(Transaccion.monto)).filter(Transaccion.tipo == "gasto").scalar() or 0.0
@@ -193,6 +219,7 @@ async def resumen_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     registrar_evento(str(update.effective_chat.id), "Solicitó resumen financiero")
     await update.message.reply_text(f"📊 *Balance*\nIngresos: ${ingresos:,.2f}\nGastos: ${gastos:,.2f}\nSaldo: *${ingresos - gastos:,.2f}*", parse_mode='Markdown')
 
+@authorized_handler
 async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     user_text = update.message.text
@@ -212,6 +239,7 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(text=f"Error: {str(e)}")
 
+@authorized_handler
 async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Manejador para notas de Voz (Vía Whisper)"""
     chat_id = update.effective_chat.id
@@ -342,7 +370,7 @@ async def analisis_predictivo(context: ContextTypes.DEFAULT_TYPE):
             if patrones:
                 p = patrones[-1]
                 try:
-                    await context.bot.send_message(chat_id=chat_id, text=f"🧠 *JARVIS Predictivo:* Basado en tus hábitos o comportamientos detectados:\n_{p.descripcion}_", parse_mode='Markdown')
+                    await context.bot.send_message(chat_id=chat_id, text=f"🧠 *JARVIS Predictivo:* Basado en tus hábitos o comportamientos detectados:\n_{p.patron}_", parse_mode='Markdown')
                 except: pass
         except: pass
     db.close()

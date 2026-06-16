@@ -1,14 +1,15 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import { 
   Activity, Shield, Mic, Cpu, Cloud, Database, 
   Wifi, Camera, ChevronRight, 
   Bitcoin, TrendingUp, AlertCircle, 
   CloudRain, Sun, Wind, Droplets, CloudSun, Zap
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, 
+  LineChart, Line, XAxis,
   Tooltip as RechartsTooltip, ResponsiveContainer, AreaChart, Area 
 } from 'recharts';
 import clsx from 'clsx';
@@ -16,7 +17,8 @@ import { twMerge } from 'tailwind-merge';
 
 import { 
   getFinancialData, getWeatherData, updatePropuestaStatus, 
-  clearAllLogs, addQuickTransaction, getSystemStatus, setSystemMode 
+  clearAllLogs, addQuickTransaction, getSystemStatus, setSystemMode,
+  type CalendarEntry, type FinanceChartPoint, type LogEntry, type ProposalEntry, type WeatherData
 } from './actions';
 
 // Util for tailwind class merging
@@ -33,24 +35,31 @@ const cryptoData = [
   { time: '20:00', price: 62800 },
 ];
 
+const voiceBars = [12, 20, 16, 24, 14];
+
 export default function Dashboard() {
   const [time, setTime] = useState(new Date());
+  const chartsReady = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
   
   // Real data states
   const [btcPrice, setBtcPrice] = useState<number | null>(null);
   const [btcChange, setBtcChange] = useState<number>(0);
   
-  const [financeData, setFinanceData] = useState<any[]>([
+  const [financeData, setFinanceData] = useState<FinanceChartPoint[]>([
     { name: '-', income: 0, expense: 0 }
   ]);
   const [totalBalance, setTotalBalance] = useState<number>(0);
   const [mtdExpense, setMtdExpense] = useState<number>(0);
   const [dbStatus, setDbStatus] = useState<string>("Offline");
   
-  const [logs, setLogs] = useState<any[]>([]);
-  const [propuestas, setPropuestas] = useState<any[]>([]);
-  const [calendar, setCalendar] = useState<any[]>([]);
-  const [weather, setWeather] = useState({ temp: "--", cond: "Cargando...", humidity: "--", wind: "--" });
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [propuestas, setPropuestas] = useState<ProposalEntry[]>([]);
+  const [calendar, setCalendar] = useState<CalendarEntry[]>([]);
+  const [weather, setWeather] = useState<WeatherData>({ temp: "--", cond: "Cargando...", humidity: "--", wind: "--" });
   const [systemMode, setSystemModeState] = useState("Estándar");
   
   useEffect(() => {
@@ -70,7 +79,7 @@ export default function Dashboard() {
           setBtcChange(parseFloat(data.priceChangePercent));
           return;
         }
-      } catch (err) {
+      } catch {
         console.error("Binance fallback needed");
       }
       
@@ -82,7 +91,7 @@ export default function Dashboard() {
           setBtcPrice(parseFloat(data.bitcoin.usd));
           setBtcChange(parseFloat(data.bitcoin.usd_24h_change));
         }
-      } catch (err) {
+      } catch {
         console.error("CoinGecko fallback failed");
       }
     };
@@ -105,7 +114,7 @@ export default function Dashboard() {
         setPropuestas(data.propuestas || []);
         setCalendar(data.calendar || []);
         setDbStatus("Online");
-      } catch(err) {
+      } catch {
         setDbStatus("Failed");
       }
     };
@@ -339,8 +348,8 @@ export default function Dashboard() {
             <Mic className="text-[var(--color-jarvis-cyan)] mb-4" size={48} />
             <h2 className="text-2xl font-light tracking-widest text-white">ESCUCHANDO</h2>
             <div className="flex gap-1 mt-4">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="w-1.5 bg-[var(--color-jarvis-cyan)] rounded-full animate-pulse" style={{ height: `${Math.max(10, Math.random() * 24)}px`, animationDelay: `${i * 0.1}s` }} />
+              {voiceBars.map((height, i) => (
+                <div key={i} className="w-1.5 bg-[var(--color-jarvis-cyan)] rounded-full animate-pulse" style={{ height: `${height}px`, animationDelay: `${(i + 1) * 0.1}s` }} />
               ))}
             </div>
           </div>
@@ -387,17 +396,19 @@ export default function Dashboard() {
                </div>
             </div>
             <div className="h-32 -mx-4 -mb-4">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={cryptoData}>
-                  <defs>
-                    <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--color-jarvis-cyan)" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="var(--color-jarvis-cyan)" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <Area type="monotone" dataKey="price" stroke="var(--color-jarvis-cyan)" fillOpacity={1} fill="url(#colorPrice)" strokeWidth={2} />
-                </AreaChart>
-              </ResponsiveContainer>
+              {chartsReady ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={cryptoData}>
+                    <defs>
+                      <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="var(--color-jarvis-cyan)" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="var(--color-jarvis-cyan)" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <Area type="monotone" dataKey="price" stroke="var(--color-jarvis-cyan)" fillOpacity={1} fill="url(#colorPrice)" strokeWidth={2} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : null}
             </div>
           </Card>
 
@@ -414,17 +425,19 @@ export default function Dashboard() {
              </div>
              
              <div className="h-40 -mx-4 -mb-2 mt-4">
-               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={financeData}>
-                  <XAxis dataKey="name" stroke="#4b5563" fontSize={10} axisLine={false} tickLine={false} />
-                  <RechartsTooltip 
-                    contentStyle={{ backgroundColor: 'rgba(17, 24, 39, 0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
-                    itemStyle={{ color: '#e5e7eb' }}
-                  />
-                  <Line type="monotone" dataKey="income" stroke="var(--color-jarvis-cyan)" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="expense" stroke="var(--color-jarvis-orange)" strokeWidth={2} dot={false} />
-                </LineChart>
-               </ResponsiveContainer>
+               {chartsReady ? (
+                 <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={financeData}>
+                    <XAxis dataKey="name" stroke="#4b5563" fontSize={10} axisLine={false} tickLine={false} />
+                    <RechartsTooltip 
+                      contentStyle={{ backgroundColor: 'rgba(17, 24, 39, 0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
+                      itemStyle={{ color: '#e5e7eb' }}
+                    />
+                    <Line type="monotone" dataKey="income" stroke="var(--color-jarvis-cyan)" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="expense" stroke="var(--color-jarvis-orange)" strokeWidth={2} dot={false} />
+                  </LineChart>
+                 </ResponsiveContainer>
+               ) : null}
              </div>
           </Card>
 
@@ -458,7 +471,7 @@ export default function Dashboard() {
 
 // Subcomponents
 
-function Card({ title, icon: Icon, children }: { title: string, icon: any, children: React.ReactNode }) {
+function Card({ title, icon: Icon, children }: { title: string, icon: LucideIcon, children: React.ReactNode }) {
   return (
     <div className="glass-panel rounded-2xl p-4 flex flex-col relative overflow-hidden group shrink-0">
       <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-[var(--color-jarvis-cyan)] to-transparent opacity-50" />
@@ -473,7 +486,7 @@ function Card({ title, icon: Icon, children }: { title: string, icon: any, child
   );
 }
 
-function StatusIcon({ icon: Icon, active, color, label }: { icon: any, active: boolean, color: 'cyan' | 'orange', label: string }) {
+function StatusIcon({ icon: Icon, active, color, label }: { icon: LucideIcon, active: boolean, color: 'cyan' | 'orange', label: string }) {
   const colorClass = color === 'cyan' ? 'text-[var(--color-jarvis-cyan)]' : 'text-[var(--color-jarvis-orange)]';
   return (
     <div className="flex flex-col items-center gap-1 opacity-80 hover:opacity-100 transition-opacity">

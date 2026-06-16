@@ -13,6 +13,10 @@ env/
 *.db
 jarvis_local.db
 temp/
+railway_vars.txt
+railway.exe
+token.pickle
+credentials.json
 
 # OS
 .DS_Store

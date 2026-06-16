@@ -507,7 +507,7 @@ def ejecutar_funcion(nombre: str, argumentos: dict) -> str:
             return f"Preferencia '{argumentos['clave']}' guardada como '{argumentos['valor']}'."
             
         elif nombre == "aprender_habito":
-            habito = HabitoYPatron(chat_id=argumentos["chat_id"], descripcion=argumentos["descripcion"])
+            habito = HabitoYPatron(chat_id=argumentos["chat_id"], patron=argumentos["descripcion"])
             db.add(habito)
             db.commit()
             return f"He aprendido este nuevo comportamiento: {argumentos['descripcion']}"
@@ -528,7 +528,7 @@ def ejecutar_funcion(nombre: str, argumentos: dict) -> str:
             
         elif nombre == "tomar_foto_vigilancia":
             import os
-            from multimedia import tapo_snapshot
+            from src.multimedia import tapo_snapshot
             user = os.getenv("TAPO_USER")
             pwd = os.getenv("TAPO_PASSWORD")
             ip = os.getenv("TAPO_IP")

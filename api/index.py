@@ -4,9 +4,13 @@ import json
 import traceback
 
 from flask import Flask, request as flask_request
+from dotenv import load_dotenv
 
 # Asegurar path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+load_dotenv()
+
+from src.security import is_chat_authorized
 
 app = Flask(__name__)
 
@@ -109,6 +113,11 @@ def webhook():
         
         if not chat_id:
             print("DEBUG: Update sin chat_id, ignorando.", flush=True)
+            return 'OK', 200
+
+        if not is_chat_authorized(chat_id):
+            print(f"WARN: Chat no autorizado: {chat_id}", flush=True)
+            tg_send(chat_id, "Acceso no autorizado.")
             return 'OK', 200
         
         print(f"DEBUG: Chat={chat_id}, Texto='{text[:50]}'", flush=True)

@@ -1,6 +1,6 @@
 import serial
 import time
-from database import SessionLocal, SensorAlert
+from src.database import SessionLocal, SensorAlert
 
 # CONFIGURACIÓN IMPORTANTE: 
 # Averigua qué puerto usa el Arduino Nano en tu Windows (lo dice en el IDE de Arduino)
