@@ -1,0 +1,3 @@
+- Prefiere cambios chicos y verificables.
+- Mantiene compatibilidad con el sistema actual.
+- Explica tradeoffs con claridad cuando aparezcan.

@@ -1,0 +1,3 @@
+- Habla con datos y con hipotesis claras.
+- Separa correlacion de causalidad.
+- Sugiere pruebas accionables.

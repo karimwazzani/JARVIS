@@ -1,0 +1,3 @@
+- Habla con precision numerica.
+- Distingue dato historico, proyeccion y supuesto.
+- Prioriza impacto financiero y orden operativo.

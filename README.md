@@ -1,155 +1,143 @@
-# JARVIS: Asistente Inteligente y Sistema Integrado
+# JARVIS
 
-## 1. Introducción
-### 1.1 Propósito
-Este documento define los requisitos funcionales y no funcionales del sistema JARVIS, un asistente inteligente orientado a la automatización del hogar y la gestión personal mediante inteligencia artificial, sensores y sistemas conectados.
+Asistente personal orientado a automatizacion, monitoreo del hogar y gestion diaria, con backend en Python, bot de Telegram, herramientas de IA y dashboard web en Next.js.
 
-### 1.2 Alcance
-JARVIS será un sistema centralizado capaz de:
-- Automatizar tareas domésticas
-- Monitorear seguridad y sistemas del hogar
-- Gestionar finanzas personales
-- Asistir mediante IA (OpenAI)
-- Integrarse con plataformas de mensajería (Telegram, WhatsApp, etc.) para control personal
+## Que incluye
 
-## 2. Descripción General
-### 2.1 Perspectiva del Producto
-JARVIS será un sistema híbrido compuesto por:
-- **Hardware**: sensores, cámaras, Raspberry Pi, módulos RF
-- **Software**: Node-RED, Home Assistant, IA (OpenAI)
-- **Interfaces**: Telegram, apps móviles, dashboards
+- Bot de Telegram para texto, voz, recordatorios, finanzas y modos del sistema.
+- Motor de IA con herramientas locales para agenda, tareas, memoria y finanzas.
+- Dashboard web para telemetria, calendario, clima, estado general y propuestas del sistema.
+- Integracion con sensores locales, simulador IoT y soporte para camara Tapo.
+- Worker persistente para Railway y frontend separado para Vercel.
 
-### 2.2 Usuarios del Sistema
-- Usuario principal (vos)
-- Familiares / cohabitantes autorizados
+## Stack
 
-## 3. Requisitos Funcionales
-### 3.1 Gestión de Automatización
-El sistema deberá:
-- Controlar luces, enchufes y dispositivos
-- Ejecutar automatizaciones basadas en sensores
-- Crear modos automáticos (ej: modo noche, modo cine, trabajo desde casa)
+- Backend: Python 3.12, `python-telegram-bot`, SQLAlchemy, OpenAI, Flask
+- Frontend: Next.js 16, React 19, TypeScript, Recharts
+- Base de datos: SQLite local o Postgres por `DATABASE_URL` / `POSTGRES_URL`
+- Deploy: Railway para el worker Python, Vercel para el dashboard
 
-### 3.2 Monitoreo y Seguridad
-El sistema deberá:
-- Monitorear cámaras IP en tiempo real
-- Detectar movimiento, personas y eventos
-- Enviar alertas automáticas (Telegram)
-- Registrar eventos de seguridad
+## Estructura
 
-### 3.3 Análisis de Imágenes (IA)
-El sistema deberá:
-- Analizar imágenes con IA (OpenCV / YOLO / OpenAI)
-- Detectar: Personas, Objetos, Inactividad
-- Generar reportes automáticos o alertas en base a reconocimientos específicos
+- `src/`: backend principal, bot, base de datos, integraciones y logica de IA
+- `src/core/`: runtime multiagente, guardian, orquestador y memoria
+- `src/agents/`: especialistas enrutable por dominio
+- `src/core_files/`: identidad, reglas y memoria base por agente
+- `api/`: webhook liviano para entornos serverless
+- `web/`: dashboard en Next.js
+- `scratch/`: utilidades y scripts de apoyo
 
-### 3.4 Automatización de Tareas
-El sistema deberá:
-- Crear recordatorios automáticos
-- Generar tareas programadas
-- Enviar notificaciones inteligentes
+## Arquitectura multiagente
 
-### 3.5 Gestión Financiera Personal
-El sistema deberá:
-- Registrar ingresos y egresos personales
-- Detectar y recordar vencimientos de servicios o facturas del hogar
-- Generar resúmenes financieros mensuales
+JARVIS ahora empieza a migrar de un agente unico a un sistema jerarquico inspirado en un "manager + especialistas":
 
-### 3.6 Asistente Inteligente (IA)
-El sistema deberá:
-- Responder preguntas del usuario
-- Interpretar comandos naturales
-- Generar sugerencias automáticas
-- Aprender de hábitos diarios
+- `Jarvis Orchestrator`: recibe el pedido, decide la ruta y arma la respuesta final.
+- `Memory Keeper`: inyecta memoria persistente y preferencias del usuario.
+- `Guardian`: detecta acciones sensibles y obliga a pasar por aprobacion humana.
+- `15 agentes especialistas`: contenido, produccion, publishing, growth, coder, QA, devops, research, CRM, finance, inbox, agenda y control.
 
-### 3.7 Integración con Telegram
-El sistema deberá permitir:
-- Enviar comandos (ej: `/apagar_luces`)
-- Recibir notificaciones del hogar
-- Consultar datos del sistema (temperatura, estado de puertas, etc.)
+La primera integracion real ya quedo conectada al flujo del bot:
 
-### 3.8 Gestión de Sensores
-El sistema deberá soportar:
-- Sensores PIR (movimiento)
-- DHT22 (temperatura/humedad)
-- Sensores de luz, vibración, calidad del aire, etc.
+- `text_handler` y `voice_handler` pasan por `src/core/orchestrator.py`
+- cada turno se clasifica por keywords
+- el especialista activo recibe sus `core files`
+- la ejecucion sigue usando el motor actual de `src/ai_agent.py` para no romper herramientas existentes
 
-### 3.9 Diagnóstico del Sistema
-El sistema deberá:
-- Detectar fallos en sensores o hardware
-- Alertar automáticamente sobre dispositivos desconectados
-- Ejecutar diagnósticos periódicos
+Resumen tecnico del MVP:
 
-## 4. Requisitos No Funcionales
-### 4.1 Rendimiento
-- Respuesta en tiempo real para tareas críticas (encendido de luces, alarmas)
-- Procesamiento diferido para consultas complejas de IA
+```text
+Telegram -> bot_handlers -> JarvisOrchestrator
+                         -> MemoryKeeper
+                         -> Specialist Agent
+                         -> legacy ai_agent toolchain
+                         -> Guardian note si aplica
+```
 
-### 4.2 Seguridad
-El sistema deberá:
-- Usar autenticación segura
-- Encriptar datos sensibles (contraseñas, reportes financieros)
-- Registrar accesos
-- Limitar comandos críticos a usuarios autorizados
+## Seguridad actual
 
-### 4.3 Disponibilidad
-- Funcionamiento continuo (24/7)
-- Uso de UPS para respaldo en caso de cortes de luz
-- Sistema de recuperación automática tras reinicios
+- El bot y el webhook pueden limitarse a chats autorizados con `AUTHORIZED_CHAT_IDS`.
+- El dashboard puede protegerse con `DASHBOARD_USER` y `DASHBOARD_PASSWORD`.
+- `.env`, bases locales, claves privadas y artefactos locales quedaron fuera del tracking.
 
-### 4.4 Escalabilidad
-- Permitir agregar nuevos sensores y módulos IoT
-- Integrar nuevos servicios web o APIs
+## Variables de entorno
 
-### 4.5 Mantenibilidad
-- Código modular
-- Documentación clara
-- Etiquetado físico de hardware
+Base:
 
-### 4.6 Eficiencia y Optimización de Costos (Regla de Oro)
-- **Cero Derroche**: Cualquier nueva función, script o módulo añadido al proyecto debe programarse buscando la máxima eficiencia posible.
-- **Uso Estricto de Tokens**: Se debe minimizar estrictamente el uso de llamadas a la API de OpenAI y la cantidad de tokens (contexto) enviados o recibidos. Las comprobaciones rutinarias de background (como monitoreo de sensores, validación de estado o chequeos de alarmas) *siempre* deben resolverse mediante lógica de código local o consultas directas a la base de datos (SQLite) sin invocar a la IA.
-- **Bajo Consumo de Memoria local**: El código debe mantener una huella de memoria RAM y CPU mínima para garantizar que JARVIS pueda correr 24/7 en hardware limitado, servidores en la nube de nivel gratuito o computadoras de escritorio sin ralentizarlas.
+- `TELEGRAM_BOT_TOKEN`
+- `OPENAI_API_KEY`
 
-## 5. Arquitectura del Sistema
-### 5.1 Arquitectura General
-- **Nodo central**: Servidor en la Nube (VPS o servicios como Render/Railway)
-- **IA**: OpenAI
-- **Control local**: Backend en Python y Node-RED (alojado en la nube)
-- **Interfaces**: Telegram, web dashboard alojado en la nube
+Opcionales recomendadas:
 
-### 5.2 Comunicación
-- WiFi (dispositivos IoT como ESP32/ESP8266 conectándose al servidor)
-- MQTT seguro o HTTP webhooks para envío de datos
-- APIs externas
+- `AUTHORIZED_CHAT_IDS`
+- `DASHBOARD_USER`
+- `DASHBOARD_PASSWORD`
+- `DATABASE_URL` o `POSTGRES_URL`
+- `TAPO_USER`
+- `TAPO_PASSWORD`
+- `TAPO_IP`
 
-## 6. Fases del Proyecto
-### 6.1 Fase 1 – Prototipo
-- Automatización básica (luces y enchufes)
-- Sensores iniciales
-- Integración básica con Telegram
-- Asistente de IA (preguntas y respuestas)
+Google Calendar:
 
-### 6.2 Fase 2 – Hogar Inteligente
-- Infraestructura ordenada
-- Seguridad eléctrica local
-- Sistema de Backups automáticos
-- Red WiFi dedicada / aislada para IoT
+- `credentials.json`
+- `token.pickle`
 
-### 6.3 Fase 3 – Uso Avanzado
-- Dashboard personalizado y avanzado (finanzas, clima, cámaras)
-- Mantenimiento predictivo de electrodomésticos
-- Integración con hardware especializado (ej. Hailo AI Kit)
+## Desarrollo local
 
-## 7. Riesgos
-- Dependencia de internet para funciones de IA en la nube
-- Costos asociados a APIs externas (OpenAI)
-- Fallos de hardware (MicroSD de Raspberry Pi, sensores)
+Backend:
 
-## 8. Futuras Expansiones
-- Integración con Siri / HomeKit
-- IA predictiva total basada en rutinas completas del usuario
+```bash
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+python src/main.py
+```
 
-## 9. Conclusión
-El sistema JARVIS es una plataforma integral que combina la domótica avanzada, inteligencia artificial y el Internet de las Cosas (IoT).
-Tiene el potencial de escalar a un asistente personal centralizado, totalmente autónomo y optimizado para tu vida cotidiana.
+Frontend:
+
+```bash
+cd web
+npm install
+npm run dev
+```
+
+Checks utiles:
+
+```bash
+cd web
+npm run lint
+npm run build
+```
+
+## Deploy
+
+### Railway
+
+- Usa `Procfile` con `worker: python src/main.py`
+- El `Dockerfile` ya esta preparado para correr el worker persistente
+- Defini las variables del bot, OpenAI y base de datos en Railway
+
+### Vercel
+
+- `vercel.json` ya apunta a `web/`
+- La salida de build se genera en `web/.next-prod`
+- Defini `DASHBOARD_USER` y `DASHBOARD_PASSWORD` si queres proteger el panel
+- Si el dashboard usa Postgres, agrega `DATABASE_URL`
+
+## Estado actual
+
+Hoy el proyecto ya tiene:
+
+- lint del frontend en verde
+- build del frontend en verde
+- sintaxis Python validada
+- una capa inicial de hardening aplicada
+
+Quedan como siguientes pasos razonables:
+
+- reemplazar el ruteo por keywords por clasificacion LLM con trazabilidad
+- separar tools por dominio (`finance`, `calendar`, `content`, `ops`) en modulos propios
+- persistir memoria y trazas por agente en tablas dedicadas
+- migraciones reales de base de datos
+- unificar mejor polling y webhook para reducir duplicacion
+- autenticacion mas fuerte en el dashboard
+- mejor documentacion de sensores y despliegue

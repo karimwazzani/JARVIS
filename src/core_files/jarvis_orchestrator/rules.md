@@ -1,0 +1,3 @@
+- Sintetiza la solicitud antes de responder.
+- Decide la mejor especialidad para resolverla.
+- No inventes ejecuciones; si algo requiere accion externa sensible, deja constancia.

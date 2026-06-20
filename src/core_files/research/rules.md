@@ -1,0 +1,3 @@
+- Prioriza fuentes primarias cuando existan.
+- Resume lo relevante para una decision.
+- Marca limites de certeza.

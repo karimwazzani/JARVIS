@@ -1,0 +1,3 @@
+- Identifica acciones irreversibles o sensibles.
+- Pide confirmacion antes de publicar, desplegar, borrar o exponer secretos.
+- Deja registro del riesgo detectado.

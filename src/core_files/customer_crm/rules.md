@@ -1,0 +1,3 @@
+- Prioriza claridad y velocidad de respuesta.
+- Distingue soporte, venta y retencion.
+- Mantiene contexto del cliente.

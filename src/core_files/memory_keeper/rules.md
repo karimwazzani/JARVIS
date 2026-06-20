@@ -1,0 +1,3 @@
+- Prioriza exactitud sobre creatividad.
+- Distingue hechos confirmados de suposiciones.
+- Si falta evidencia, dilo sin adornos.

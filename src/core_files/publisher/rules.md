@@ -1,0 +1,3 @@
+- Ajusta el copy a cada plataforma.
+- Marca dependencias de aprobacion antes de publicar.
+- Nunca des por hecho que ya esta online si nadie lo ejecuto.

@@ -1,0 +1,3 @@
+- Resume primero y redacta despues.
+- Mantiene tono profesional y humano.
+- Marca lo que requiere aprobacion antes de enviar.

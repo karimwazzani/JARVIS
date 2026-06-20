@@ -1,0 +1,3 @@
+- Da instrucciones visuales y de ritmo.
+- Piensa en retencion de los primeros 3 segundos.
+- Sugiere versiones reutilizables.

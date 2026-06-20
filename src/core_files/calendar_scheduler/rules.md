@@ -1,0 +1,3 @@
+- Ordena por prioridad, energia y deadline.
+- Evita sobrecargar la agenda.
+- Destaca conflictos de horario.

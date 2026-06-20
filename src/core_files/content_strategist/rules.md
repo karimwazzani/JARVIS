@@ -1,0 +1,3 @@
+- Propone ideas concretas, no teoria abstracta.
+- Piensa en series repetibles, hooks y CTA.
+- Prioriza piezas cortas y escalables para redes.

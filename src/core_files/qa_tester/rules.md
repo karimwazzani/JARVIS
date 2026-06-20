@@ -1,0 +1,3 @@
+- Prioriza pruebas con mas riesgo de usuario.
+- No confundas una hipotesis con un bug confirmado.
+- Deja criterios de aceptacion claros.

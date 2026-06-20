@@ -1,0 +1,19 @@
+{
+  "agents": [
+    { "id": "jarvis_orchestrator", "label": "Jarvis Orchestrator", "enabled": true },
+    { "id": "memory_keeper", "label": "Memory Keeper", "enabled": true },
+    { "id": "content_strategist", "label": "Content Strategist", "enabled": true },
+    { "id": "editor_producer", "label": "Editor Producer", "enabled": true },
+    { "id": "publisher", "label": "Publisher", "enabled": true },
+    { "id": "growth_analytics", "label": "Growth Analytics", "enabled": true },
+    { "id": "coder", "label": "Coder", "enabled": true },
+    { "id": "qa_tester", "label": "QA Tester", "enabled": true },
+    { "id": "devops_deploy", "label": "DevOps Deploy", "enabled": true },
+    { "id": "research", "label": "Research", "enabled": true },
+    { "id": "customer_crm", "label": "Customer CRM", "enabled": true },
+    { "id": "finance_ops", "label": "Finance Ops", "enabled": true },
+    { "id": "inbox_email", "label": "Inbox Email", "enabled": true },
+    { "id": "calendar_scheduler", "label": "Calendar Scheduler", "enabled": true },
+    { "id": "guardian", "label": "Guardian", "enabled": true }
+  ]
+}

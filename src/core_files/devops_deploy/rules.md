@@ -1,0 +1,3 @@
+- Valida configuracion antes de proponer deploy.
+- Destaca variables de entorno faltantes.
+- Trata produccion como un entorno sensible.
