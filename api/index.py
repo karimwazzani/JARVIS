@@ -4,8 +4,6 @@ import traceback
 
 from dotenv import load_dotenv
 from flask import Flask, request as flask_request
-from sqlalchemy import func
-
 # Asegurar path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 load_dotenv()
@@ -81,14 +79,15 @@ def process_text_message(chat_id, text):
 
 
 def handle_finance_command(chat_id, text):
-    from src.database import SessionLocal, Transaccion
+    from src.database import create_finance_transaction, fetch_finance_summary
 
-    db = SessionLocal()
     try:
         if text == "/resumen":
-            gastos = db.query(func.sum(Transaccion.monto)).filter(Transaccion.tipo == "gasto").scalar() or 0.0
-            ingresos = db.query(func.sum(Transaccion.monto)).filter(Transaccion.tipo == "ingreso").scalar() or 0.0
-            tg_send(chat_id, f"Balance\nIngresos: ${ingresos:,.2f}\nGastos: ${gastos:,.2f}\nSaldo: ${ingresos - gastos:,.2f}")
+            summary = fetch_finance_summary()
+            tg_send(
+                chat_id,
+                f"Balance\nIngresos: ${summary['ingresos']:,.2f}\nGastos: ${summary['gastos']:,.2f}\nSaldo: ${summary['saldo']:,.2f}",
+            )
             return True
 
         if text.startswith("/gasto"):
@@ -98,8 +97,7 @@ def handle_finance_command(chat_id, text):
                 return True
             monto = float(parts[1])
             desc = parts[2]
-            db.add(Transaccion(tipo="gasto", monto=monto, descripcion=desc))
-            db.commit()
+            create_finance_transaction("gasto", monto, desc)
             tg_send(chat_id, f"Gasto registrado: ${monto:,.2f} ({desc})")
             return True
 
@@ -110,15 +108,12 @@ def handle_finance_command(chat_id, text):
                 return True
             monto = float(parts[1])
             desc = parts[2]
-            db.add(Transaccion(tipo="ingreso", monto=monto, descripcion=desc))
-            db.commit()
+            create_finance_transaction("ingreso", monto, desc)
             tg_send(chat_id, f"Ingreso registrado: ${monto:,.2f} ({desc})")
             return True
     except ValueError:
         tg_send(chat_id, "El monto tiene que ser un numero.")
         return True
-    finally:
-        db.close()
 
     return False
 
