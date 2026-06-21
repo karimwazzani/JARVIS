@@ -13,6 +13,8 @@ class BaseAgent:
     label: str
     description: str
     keywords: tuple[str, ...] = field(default_factory=tuple)
+    delivery_contract: str = ""
+    operating_focus: str = ""
 
     def score(self, user_message: str) -> int:
         text = user_message.lower()
@@ -23,8 +25,13 @@ class BaseAgent:
         context.core_identity = core["identity"]
         context.core_rules = core["rules"]
         context.core_memory = core["memory"]
+
+        contract = self.delivery_contract.strip()
+        focus = self.operating_focus.strip()
+        contract_block = f"FOCO OPERATIVO:\n{focus}\n\nFORMATO DE ENTREGA OBLIGATORIO:\n{contract}" if (focus or contract) else ""
+
         return "\n\n".join(
-            part for part in [core["identity"], core["rules"], core["memory"]] if part
+            part for part in [core["identity"], core["rules"], core["memory"], contract_block] if part
         )
 
     def run(self, context: AgentContext) -> AgentResult:
@@ -38,3 +45,17 @@ class BaseAgent:
         )
         return AgentResult(route=self.agent_id, response=response)
 
+
+@dataclass(slots=True)
+class SpecialistAgent(BaseAgent):
+    capability_summary: str = ""
+
+    def build_instruction(self, context: AgentContext) -> str:
+        base_instruction = super().build_instruction(context)
+        capability_block = (
+            f"CAPACIDAD ESPECIAL:\n{self.capability_summary}\n"
+            "No respondas de forma genérica. Entrega un resultado accionable, concreto y con decisión."
+            if self.capability_summary
+            else ""
+        )
+        return "\n\n".join(part for part in [base_instruction, capability_block] if part)
