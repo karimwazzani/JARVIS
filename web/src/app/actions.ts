@@ -11,6 +11,7 @@ type TransactionRow = {
 };
 
 type LogRow = {
+  id?: number;
   evento: string;
   fecha: string;
 };
@@ -30,6 +31,30 @@ type CalendarRow = {
 
 type PreferenceRow = {
   valor: string;
+};
+
+type ConversationRow = {
+  id: number;
+  chat_id: string;
+  rol: string;
+  contenido: string;
+  fecha?: string;
+};
+
+type MemoryRow = {
+  id?: number;
+  categoria: string;
+  dato: string;
+  fecha_registro: string;
+};
+
+type TaskRow = {
+  id: number;
+  chat_id: string;
+  titulo: string;
+  descripcion: string | null;
+  estado: string;
+  fecha_creacion: string;
 };
 
 function getSupabaseAdmin() {
@@ -58,10 +83,44 @@ function startOfTrailingWeekUtc() {
 }
 
 function formatDayLabel(dateString: string) {
-  return new Date(dateString).toLocaleDateString("en-US", {
+  return new Date(dateString).toLocaleDateString("es-AR", {
     weekday: "short",
     timeZone: "UTC",
   });
+}
+
+function formatRelative(dateString: string) {
+  const date = new Date(dateString);
+  return date.toLocaleString("es-AR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function labelFromRoute(route: string) {
+  return route
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function parseAgentRun(evento: string) {
+  if (!evento.startsWith("[AGENT_RUN]")) return null;
+  const jsonPart = evento.replace("[AGENT_RUN]", "").trim();
+  try {
+    return JSON.parse(jsonPart) as {
+      route: string;
+      status: string;
+      requires_confirmation: boolean;
+      user_message: string;
+      response_preview: string;
+      metadata?: Record<string, string>;
+    };
+  } catch {
+    return null;
+  }
 }
 
 export type FinanceChartPoint = {
@@ -70,9 +129,41 @@ export type FinanceChartPoint = {
   expense: number;
 };
 
-export type LogEntry = {
-  evento: string;
-  fecha: string;
+export type AgentRunEntry = {
+  route: string;
+  label: string;
+  status: string;
+  requiresConfirmation: boolean;
+  userMessage: string;
+  responsePreview: string;
+  timestamp: string;
+};
+
+export type AgentMemoryEntry = {
+  route: string;
+  category: string;
+  content: string;
+  timestamp: string;
+};
+
+export type AgentConversationEntry = {
+  id: number;
+  chatId: string;
+  role: string;
+  content: string;
+  timestamp?: string;
+};
+
+export type AgentSummary = {
+  route: string;
+  label: string;
+  totalRuns: number;
+  latestStatus: string;
+  latestAt: string | null;
+  latestPrompt: string;
+  latestResponse: string;
+  memoryItems: AgentMemoryEntry[];
+  recentRuns: AgentRunEntry[];
 };
 
 export type ProposalEntry = {
@@ -88,14 +179,33 @@ export type CalendarEntry = {
   ubicacion: string | null;
 };
 
-export type WeatherData = {
-  temp: string;
-  cond: string;
-  humidity: string;
-  wind: string;
+export type TaskEntry = {
+  id: number;
+  titulo: string;
+  descripcion: string | null;
+  estado: string;
+  fecha: string;
 };
 
-export async function getFinancialData() {
+export type DashboardSnapshot = {
+  totalBalance: number;
+  mtdExpense: number;
+  chartData: FinanceChartPoint[];
+  systemMode: string;
+  totalAgentRuns: number;
+  uniqueChats: number;
+  pendingTasks: number;
+  pendingApprovals: number;
+  logs: { evento: string; fecha: string }[];
+  proposals: ProposalEntry[];
+  calendar: CalendarEntry[];
+  tasks: TaskEntry[];
+  conversations: AgentConversationEntry[];
+  agentRuns: AgentRunEntry[];
+  agentSummaries: AgentSummary[];
+};
+
+export async function getDashboardSnapshot(): Promise<DashboardSnapshot> {
   try {
     const supabase = getSupabaseAdmin();
     const monthStart = startOfCurrentMonthUtc().toISOString();
@@ -111,6 +221,10 @@ export async function getFinancialData() {
       logsResult,
       propuestasResult,
       calendarResult,
+      modeResult,
+      conversationsResult,
+      memoriesResult,
+      tasksResult,
     ] = await Promise.all([
       supabase.from("transacciones").select("tipo,monto,fecha").order("fecha", { ascending: true }),
       supabase.from("transacciones").select("tipo,monto,fecha").gte("fecha", monthStart),
@@ -120,7 +234,7 @@ export async function getFinancialData() {
         .gte("fecha", weekStart.toISOString())
         .lte("fecha", todayEnd.toISOString())
         .order("fecha", { ascending: true }),
-      supabase.from("log_eventos").select("evento,fecha").order("fecha", { ascending: false }).limit(10),
+      supabase.from("log_eventos").select("id,evento,fecha").order("fecha", { ascending: false }).limit(60),
       supabase
         .from("propuestas_automatizacion")
         .select("id,descripcion,accion_tecnica,fecha_creacion")
@@ -133,6 +247,15 @@ export async function getFinancialData() {
         .gte("fecha_hora", new Date().toISOString())
         .order("fecha_hora", { ascending: true })
         .limit(5),
+      supabase
+        .from("preferencias_usuario")
+        .select("valor")
+        .eq("clave", "modo_sistema")
+        .order("fecha_actualizacion", { ascending: false })
+        .limit(1),
+      supabase.from("conversaciones").select("id,chat_id,rol,contenido,fecha").order("id", { ascending: false }).limit(30),
+      supabase.from("memorias").select("categoria,dato,fecha_registro").like("categoria", "agent::%").order("fecha_registro", { ascending: false }).limit(30),
+      supabase.from("tareas").select("id,chat_id,titulo,descripcion,estado,fecha_creacion").order("fecha_creacion", { ascending: false }).limit(10),
     ]);
 
     const errors = [
@@ -142,15 +265,21 @@ export async function getFinancialData() {
       logsResult.error,
       propuestasResult.error,
       calendarResult.error,
+      modeResult.error,
+      conversationsResult.error,
+      memoriesResult.error,
+      tasksResult.error,
     ].filter(Boolean);
 
-    if (errors.length > 0) {
-      throw errors[0];
-    }
+    if (errors.length > 0) throw errors[0];
 
     const allTransactions = (transactionsResult.data || []) as TransactionRow[];
     const monthTransactions = (monthTransactionsResult.data || []) as TransactionRow[];
     const weekTransactions = (weekTransactionsResult.data || []) as TransactionRow[];
+    const logs = (logsResult.data || []) as LogRow[];
+    const conversations = (conversationsResult.data || []) as ConversationRow[];
+    const memories = (memoriesResult.data || []) as MemoryRow[];
+    const tasks = (tasksResult.data || []) as TaskRow[];
 
     const totals = allTransactions.reduce(
       (acc, row) => {
@@ -188,15 +317,97 @@ export async function getFinancialData() {
       if (row.tipo === "gasto") bucket.expense += amount;
     }
 
+    const agentRuns = logs
+      .map((row) => {
+        const parsed = parseAgentRun(row.evento);
+        if (!parsed) return null;
+        return {
+          route: parsed.route,
+          label: labelFromRoute(parsed.route),
+          status: parsed.status,
+          requiresConfirmation: parsed.requires_confirmation,
+          userMessage: parsed.user_message,
+          responsePreview: parsed.response_preview,
+          timestamp: row.fecha,
+        } satisfies AgentRunEntry;
+      })
+      .filter((row): row is AgentRunEntry => Boolean(row));
+
+    const memoryByRoute = new Map<string, AgentMemoryEntry[]>();
+    for (const row of memories) {
+      const parts = row.categoria.split("::");
+      const route = parts[1] || "jarvis_orchestrator";
+      const category = parts[2] || "memory";
+      const current = memoryByRoute.get(route) || [];
+      current.push({
+        route,
+        category,
+        content: row.dato,
+        timestamp: row.fecha_registro,
+      });
+      memoryByRoute.set(route, current);
+    }
+
+    const grouped = new Map<string, AgentSummary>();
+    for (const run of agentRuns) {
+      const current = grouped.get(run.route) || {
+        route: run.route,
+        label: run.label,
+        totalRuns: 0,
+        latestStatus: run.status,
+        latestAt: run.timestamp,
+        latestPrompt: run.userMessage,
+        latestResponse: run.responsePreview,
+        memoryItems: memoryByRoute.get(run.route) || [],
+        recentRuns: [],
+      };
+      current.totalRuns += 1;
+      if (!current.latestAt || new Date(run.timestamp) > new Date(current.latestAt)) {
+        current.latestAt = run.timestamp;
+        current.latestStatus = run.status;
+        current.latestPrompt = run.userMessage;
+        current.latestResponse = run.responsePreview;
+      }
+      if (current.recentRuns.length < 4) {
+        current.recentRuns.push(run);
+      }
+      grouped.set(run.route, current);
+    }
+
+    for (const [route, memoryItems] of memoryByRoute.entries()) {
+      if (!grouped.has(route)) {
+        grouped.set(route, {
+          route,
+          label: labelFromRoute(route),
+          totalRuns: 0,
+          latestStatus: "idle",
+          latestAt: memoryItems[0]?.timestamp || null,
+          latestPrompt: "",
+          latestResponse: "",
+          memoryItems,
+          recentRuns: [],
+        });
+      }
+    }
+
+    const uniqueChats = new Set(conversations.map((row) => row.chat_id)).size;
+    const pendingTasks = tasks.filter((task) => task.estado === "pendiente").length;
+    const pendingApprovals = (propuestasResult.data || []).length;
+
     return {
       totalBalance: totals.income - totals.expense,
       mtdExpense,
       chartData: Array.from(dailyMap.values()),
-      logs: ((logsResult.data || []) as LogRow[]).map((row) => ({
-        evento: row.evento,
-        fecha: row.fecha,
-      })),
-      propuestas: ((propuestasResult.data || []) as ProposalRow[]).map((row) => ({
+      systemMode: ((modeResult.data || []) as PreferenceRow[])[0]?.valor || "Estándar",
+      totalAgentRuns: agentRuns.length,
+      uniqueChats,
+      pendingTasks,
+      pendingApprovals,
+      logs: logs
+        .filter((row) => !row.evento.startsWith("[AGENT_RUN]"))
+        .slice(0, 12)
+        .map((row) => ({ evento: row.evento, fecha: row.fecha })),
+      proposals: ((propuestasResult.data || []) as ProposalRow[]).map((row) => ({
         id: row.id,
         descripcion: row.descripcion,
         tecnica: row.accion_tecnica,
@@ -207,55 +418,54 @@ export async function getFinancialData() {
         fecha: row.fecha_hora,
         ubicacion: row.ubicacion,
       })),
+      tasks: tasks.map((task) => ({
+        id: task.id,
+        titulo: task.titulo,
+        descripcion: task.descripcion,
+        estado: task.estado,
+        fecha: task.fecha_creacion,
+      })),
+      conversations: conversations.map((row) => ({
+        id: row.id,
+        chatId: row.chat_id,
+        role: row.rol,
+        content: row.contenido,
+        timestamp: row.fecha,
+      })),
+      agentRuns,
+      agentSummaries: Array.from(grouped.values()).sort((a, b) => {
+        const aTime = a.latestAt ? new Date(a.latestAt).getTime() : 0;
+        const bTime = b.latestAt ? new Date(b.latestAt).getTime() : 0;
+        return bTime - aTime;
+      }),
     };
   } catch (error) {
-    console.error("Failed to fetch database data:", error);
+    console.error("Failed to build dashboard snapshot:", error);
     return {
       totalBalance: 0,
       mtdExpense: 0,
-      logs: [],
-      propuestas: [],
-      calendar: [],
       chartData: [
-        { name: "Mon", income: 0, expense: 0 },
-        { name: "Tue", income: 0, expense: 0 },
-        { name: "Wed", income: 0, expense: 0 },
-        { name: "Thu", income: 0, expense: 0 },
-        { name: "Fri", income: 0, expense: 0 },
-        { name: "Sat", income: 0, expense: 0 },
-        { name: "Sun", income: 0, expense: 0 },
+        { name: "lun", income: 0, expense: 0 },
+        { name: "mar", income: 0, expense: 0 },
+        { name: "mie", income: 0, expense: 0 },
+        { name: "jue", income: 0, expense: 0 },
+        { name: "vie", income: 0, expense: 0 },
+        { name: "sab", income: 0, expense: 0 },
+        { name: "dom", income: 0, expense: 0 },
       ],
+      systemMode: "Estándar",
+      totalAgentRuns: 0,
+      uniqueChats: 0,
+      pendingTasks: 0,
+      pendingApprovals: 0,
+      logs: [],
+      proposals: [],
+      calendar: [],
+      tasks: [],
+      conversations: [],
+      agentRuns: [],
+      agentSummaries: [],
     };
-  }
-}
-
-export async function getWeatherData() {
-  try {
-    const res = await fetch("https://wttr.in/Buenos%20Aires?format=%t|%C|%h|%w");
-    if (res.ok) {
-      const txt = await res.text();
-      const [temp, cond, humidity, wind] = txt.split("|");
-      return { temp, cond, humidity, wind };
-    }
-  } catch {
-    return { temp: "--", cond: "No disponible", humidity: "--", wind: "--" };
-  }
-  return { temp: "--", cond: "No disponible", humidity: "--", wind: "--" };
-}
-
-export async function updatePropuestaStatus(id: number, status: "aprobada" | "rechazada") {
-  try {
-    const supabase = getSupabaseAdmin();
-    const { error } = await supabase
-      .from("propuestas_automatizacion")
-      .update({ estado: status })
-      .eq("id", id);
-
-    if (error) throw error;
-    return { success: true };
-  } catch (e) {
-    console.error("Error updating proposal:", e);
-    return { success: false };
   }
 }
 
@@ -290,23 +500,6 @@ export async function addQuickTransaction(
   }
 }
 
-export async function getSystemStatus() {
-  try {
-    const supabase = getSupabaseAdmin();
-    const { data, error } = await supabase
-      .from("preferencias_usuario")
-      .select("valor")
-      .eq("clave", "modo_sistema")
-      .order("fecha_actualizacion", { ascending: false })
-      .limit(1);
-
-    if (error) throw error;
-    return ((data || []) as PreferenceRow[])[0]?.valor || "Estándar";
-  } catch {
-    return "Estándar";
-  }
-}
-
 export async function setSystemMode(modo: string) {
   try {
     const supabase = getSupabaseAdmin();
@@ -335,5 +528,35 @@ export async function setSystemMode(modo: string) {
   } catch (e) {
     console.error("Error setting mode:", e);
     return { success: false };
+  }
+}
+
+export async function sendWebPanelMessage(message: string, chatId = "web-panel") {
+  try {
+    const backendUrl = process.env.NEXT_PUBLIC_JARVIS_BACKEND_URL || "https://jarvis-backend-7hh7.onrender.com";
+    const response = await fetch(`${backendUrl}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chatId, message }),
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      throw new Error(`Backend returned ${response.status}`);
+    }
+
+    const data = await response.json();
+    return {
+      success: true,
+      chatId: data.chatId as string,
+      response: data.response as string,
+    };
+  } catch (error) {
+    console.error("Error sending web panel message:", error);
+    return {
+      success: false,
+      chatId,
+      response: "No pude comunicarme con Jarvis desde el panel web.",
+    };
   }
 }

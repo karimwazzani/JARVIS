@@ -78,6 +78,13 @@ def process_text_message(chat_id, text):
     return response_text
 
 
+def handle_chat_turn(chat_id, text):
+    print(f"DEBUG: Chat={chat_id}, Texto='{text[:80]}'", flush=True)
+    registrar_evento(str(chat_id), f"Texto: {text}")
+    response = process_text_message(chat_id, text)
+    return response
+
+
 def handle_finance_command(chat_id, text):
     from src.database import create_finance_transaction, fetch_finance_summary
 
@@ -136,9 +143,6 @@ def webhook():
             tg_send(chat_id, "Acceso no autorizado.")
             return "OK", 200
 
-        print(f"DEBUG: Chat={chat_id}, Texto='{text[:80]}'", flush=True)
-        registrar_evento(str(chat_id), f"Texto: {text}")
-
         if text.lower() == "ping":
             tg_send(chat_id, "PONG! JARVIS conectado.")
             return "OK", 200
@@ -169,7 +173,7 @@ def webhook():
         if text and not text.startswith("/"):
             tg_send_action(chat_id, "typing")
             try:
-                response = process_text_message(chat_id, text)
+                response = handle_chat_turn(chat_id, text)
                 tg_send(chat_id, response)
             except Exception as exc:
                 print(f"ERROR procesando texto:\n{traceback.format_exc()}", flush=True)
@@ -180,3 +184,20 @@ def webhook():
     except Exception:
         print(f"ERROR FATAL EN WEBHOOK:\n{traceback.format_exc()}", flush=True)
         return "OK", 200
+
+
+@app.route("/api/chat", methods=["POST"])
+def web_chat():
+    try:
+        payload = flask_request.get_json(force=True) or {}
+        chat_id = str(payload.get("chatId") or "web-panel")
+        text = str(payload.get("message") or "").strip()
+
+        if not text:
+            return {"ok": False, "error": "Message is required."}, 400
+
+        response = handle_chat_turn(chat_id, text)
+        return {"ok": True, "chatId": chat_id, "message": text, "response": response}, 200
+    except Exception as exc:
+        print(f"ERROR WEB CHAT:\n{traceback.format_exc()}", flush=True)
+        return {"ok": False, "error": str(exc)[:200]}, 500

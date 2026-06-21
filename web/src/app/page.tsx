@@ -1,512 +1,785 @@
 "use client";
 
-import React, { useEffect, useState, useSyncExternalStore } from 'react';
-import { 
-  Activity, Shield, Mic, Cpu, Cloud, Database, 
-  Wifi, Camera, ChevronRight, 
-  Bitcoin, TrendingUp, AlertCircle, 
-  CloudRain, Sun, Wind, Droplets, CloudSun, Zap
-} from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
-import { 
-  LineChart, Line, XAxis,
-  Tooltip as RechartsTooltip, ResponsiveContainer, AreaChart, Area 
-} from 'recharts';
-import clsx from 'clsx';
-import { twMerge } from 'tailwind-merge';
+import React, { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import {
+  Activity,
+  Bot,
+  Brain,
+  CheckCircle2,
+  ChevronRight,
+  Clock3,
+  Cpu,
+  Database,
+  LoaderCircle,
+  MessageSquare,
+  Mic,
+  MicOff,
+  Shield,
+  Sparkles,
+  Wallet,
+  Waves,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { Area, AreaChart, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis } from "recharts";
+import clsx from "clsx";
+import { twMerge } from "tailwind-merge";
 
-import { 
-  getFinancialData, getWeatherData, updatePropuestaStatus, 
-  clearAllLogs, addQuickTransaction, getSystemStatus, setSystemMode,
-  type CalendarEntry, type FinanceChartPoint, type LogEntry, type ProposalEntry, type WeatherData
-} from './actions';
+import {
+  addQuickTransaction,
+  clearAllLogs,
+  getDashboardSnapshot,
+  sendWebPanelMessage,
+  setSystemMode,
+  type AgentConversationEntry,
+  type AgentSummary,
+  type DashboardSnapshot,
+  type FinanceChartPoint,
+} from "./actions";
 
-// Util for tailwind class merging
+declare global {
+  interface Window {
+    webkitSpeechRecognition?: new () => SpeechRecognition;
+    SpeechRecognition?: new () => SpeechRecognition;
+  }
+}
+
+type SpeechRecognition = {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onstart: (() => void) | null;
+  onend: (() => void) | null;
+  onerror: ((event: { error: string }) => void) | null;
+  onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+
+type ChatBubble = {
+  role: "user" | "assistant";
+  content: string;
+  timestamp: string;
+};
+
 function cn(...inputs: (string | undefined | null | false)[]) {
   return twMerge(clsx(inputs));
 }
 
-const cryptoData = [
-  { time: '10:00', price: 61200 },
-  { time: '12:00', price: 61500 },
-  { time: '14:00', price: 62100 },
-  { time: '16:00', price: 61850 },
-  { time: '18:00', price: 62400 },
-  { time: '20:00', price: 62800 },
-];
+const AGENT_META: Record<
+  string,
+  {
+    title: string;
+    blurb: string;
+    accent: "cyan" | "orange";
+    icon: LucideIcon;
+  }
+> = {
+  jarvis_orchestrator: {
+    title: "Jarvis Orchestrator",
+    blurb: "Decide qué agente entra y arma la respuesta final.",
+    accent: "cyan",
+    icon: Brain,
+  },
+  memory_keeper: {
+    title: "Memory Keeper",
+    blurb: "Ordena memoria, contexto y estado útil para cada turno.",
+    accent: "cyan",
+    icon: Database,
+  },
+  research: {
+    title: "Research",
+    blurb: "Investiga mercado, competencia y fuentes.",
+    accent: "orange",
+    icon: Sparkles,
+  },
+  coder: {
+    title: "Coder",
+    blurb: "Piensa producto, bugs, features y arquitectura.",
+    accent: "cyan",
+    icon: Cpu,
+  },
+  content_strategist: {
+    title: "Content Strategist",
+    blurb: "Propone ideas, hooks, series y estrategia de contenido.",
+    accent: "orange",
+    icon: Waves,
+  },
+  devops_deploy: {
+    title: "DevOps Deploy",
+    blurb: "Maneja deploys, entornos e infraestructura.",
+    accent: "cyan",
+    icon: Shield,
+  },
+  qa_tester: {
+    title: "QA Tester",
+    blurb: "Valida comportamientos, pruebas y riesgos.",
+    accent: "orange",
+    icon: CheckCircle2,
+  },
+  finance_ops: {
+    title: "Finance Ops",
+    blurb: "Sigue gastos, ingresos y salud financiera.",
+    accent: "orange",
+    icon: Wallet,
+  },
+};
 
-const voiceBars = [12, 20, 16, 24, 14];
+const MODE_OPTIONS = ["Estándar", "Centinela", "Relax", "Ejecutor", "Fiesta"];
+
+const EMPTY_SNAPSHOT: DashboardSnapshot = {
+  totalBalance: 0,
+  mtdExpense: 0,
+  chartData: [],
+  systemMode: "Estándar",
+  totalAgentRuns: 0,
+  uniqueChats: 0,
+  pendingTasks: 0,
+  pendingApprovals: 0,
+  logs: [],
+  proposals: [],
+  calendar: [],
+  tasks: [],
+  conversations: [],
+  agentRuns: [],
+  agentSummaries: [],
+};
 
 export default function Dashboard() {
-  const [time, setTime] = useState(new Date());
   const chartsReady = useSyncExternalStore(
     () => () => {},
     () => true,
     () => false,
   );
-  
-  // Real data states
-  const [btcPrice, setBtcPrice] = useState<number | null>(null);
-  const [btcChange, setBtcChange] = useState<number>(0);
-  
-  const [financeData, setFinanceData] = useState<FinanceChartPoint[]>([
-    { name: '-', income: 0, expense: 0 }
-  ]);
-  const [totalBalance, setTotalBalance] = useState<number>(0);
-  const [mtdExpense, setMtdExpense] = useState<number>(0);
-  const [dbStatus, setDbStatus] = useState<string>("Offline");
-  
-  const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [propuestas, setPropuestas] = useState<ProposalEntry[]>([]);
-  const [calendar, setCalendar] = useState<CalendarEntry[]>([]);
-  const [weather, setWeather] = useState<WeatherData>({ temp: "--", cond: "Cargando...", humidity: "--", wind: "--" });
-  const [systemMode, setSystemModeState] = useState("Estándar");
-  
+  const [time, setTime] = useState(new Date());
+  const [snapshot, setSnapshot] = useState<DashboardSnapshot>(EMPTY_SNAPSHOT);
+  const [selectedRoute, setSelectedRoute] = useState("jarvis_orchestrator");
+  const [message, setMessage] = useState("");
+  const [chatFeed, setChatFeed] = useState<ChatBubble[]>([]);
+  const [sending, setSending] = useState(false);
+  const [listening, setListening] = useState(false);
+  const [voiceSupported, setVoiceSupported] = useState(false);
+
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // Fetch BTC logic
   useEffect(() => {
-    const fetchBtc = async () => {
-      try {
-        // Fetch Binance 24hr ticker to get current price and percent change
-        const res = await fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT');
-        if (res.ok) {
-          const data = await res.json();
-          setBtcPrice(parseFloat(data.lastPrice));
-          setBtcChange(parseFloat(data.priceChangePercent));
-          return;
-        }
-      } catch {
-        console.error("Binance fallback needed");
+    const recognitionSupported = typeof window !== "undefined" && Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
+    setVoiceSupported(recognitionSupported);
+  }, []);
+
+  useEffect(() => {
+    const load = async () => {
+      const data = await getDashboardSnapshot();
+      setSnapshot(data);
+      if (data.agentSummaries.length > 0 && !data.agentSummaries.some((item) => item.route === selectedRoute)) {
+        setSelectedRoute(data.agentSummaries[0].route);
       }
-      
-      // CoinGecko fallback (doesn't give 24h change as easily but gives price)
-      try {
-        const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true');
-        if (res.ok) {
-          const data = await res.json();
-          setBtcPrice(parseFloat(data.bitcoin.usd));
-          setBtcChange(parseFloat(data.bitcoin.usd_24h_change));
-        }
-      } catch {
-        console.error("CoinGecko fallback failed");
-      }
+
+      const webConversations = data.conversations
+        .filter((row) => row.chatId === "web-panel")
+        .slice(0, 12)
+        .reverse()
+        .map((row) => ({
+          role: row.role as "user" | "assistant",
+          content: row.content,
+          timestamp: row.timestamp || "",
+        }));
+      setChatFeed(webConversations);
     };
-    
-    fetchBtc();
-    // Update every 15 seconds
-    const interval = setInterval(fetchBtc, 15000);
+
+    load();
+    const interval = setInterval(load, 15000);
     return () => clearInterval(interval);
-  }, []);
+  }, [selectedRoute]);
 
-  // Fetch DB Finance logic
-  useEffect(() => {
-    const fetchDb = async () => {
-      try {
-        const data = await getFinancialData();
-        setTotalBalance(data.totalBalance);
-        setMtdExpense(data.mtdExpense);
-        setFinanceData(data.chartData);
-        setLogs(data.logs || []);
-        setPropuestas(data.propuestas || []);
-        setCalendar(data.calendar || []);
-        setDbStatus("Online");
-      } catch {
-        setDbStatus("Failed");
-      }
-    };
+  const selectedAgent = useMemo(() => {
+    return snapshot.agentSummaries.find((item) => item.route === selectedRoute) || null;
+  }, [snapshot.agentSummaries, selectedRoute]);
 
-    const fetchWeather = async () => {
-      const data = await getWeatherData();
-      setWeather(data);
-    };
+  const handleModeChange = async (mode: string) => {
+    const result = await setSystemMode(mode);
+    if (result.success) {
+      setSnapshot((prev) => ({ ...prev, systemMode: mode }));
+    }
+  };
 
-    fetchDb();
-    fetchWeather();
-    const fetchMode = async () => {
-      const m = await getSystemStatus();
-      setSystemModeState(m);
-    };
-    fetchMode();
-
-    // Refresh DB logic every 30 secs
-    const dbInterval = setInterval(fetchDb, 30000);
-    const weatherInterval = setInterval(fetchWeather, 300000);
-    const modeInterval = setInterval(fetchMode, 10000);
-    return () => {
-      clearInterval(dbInterval);
-      clearInterval(weatherInterval);
-      clearInterval(modeInterval);
-    };
-  }, []);
-
-  const handlePropuesta = async (id: number, status: 'aprobada' | 'rechazada') => {
-    const res = await updatePropuestaStatus(id, status);
-    if (res.success) {
-      setPropuestas(prev => prev.filter(p => p.id !== id));
+  const handleQuickTransaction = async (tipo: "gasto" | "ingreso") => {
+    const amountText = prompt(tipo === "gasto" ? "Monto del gasto:" : "Monto del ingreso:");
+    if (!amountText) return;
+    const description = prompt("Descripción:");
+    if (!description) return;
+    const result = await addQuickTransaction(Number(amountText), description, tipo);
+    if (result.success) {
+      const data = await getDashboardSnapshot();
+      setSnapshot(data);
     }
   };
 
   const handleClearLogs = async () => {
-    if (confirm("¿Limpiar toda la telemetría del sistema?")) {
-      const res = await clearAllLogs();
-      if (res.success) setLogs([]);
+    if (!confirm("¿Limpiar los logs visibles del panel?")) return;
+    const result = await clearAllLogs();
+    if (result.success) {
+      const data = await getDashboardSnapshot();
+      setSnapshot(data);
     }
   };
 
-  const handleChangeMode = async (m: string) => {
-    const res = await setSystemMode(m);
-    if (res.success) setSystemModeState(m);
+  const submitMessage = async (content: string) => {
+    if (!content.trim()) return;
+
+    const userBubble: ChatBubble = {
+      role: "user",
+      content: content.trim(),
+      timestamp: new Date().toISOString(),
+    };
+    setChatFeed((prev) => [...prev, userBubble]);
+    setSending(true);
+    setMessage("");
+
+    const result = await sendWebPanelMessage(content.trim(), "web-panel");
+
+    setChatFeed((prev) => [
+      ...prev,
+      {
+        role: "assistant",
+        content: result.response,
+        timestamp: new Date().toISOString(),
+      },
+    ]);
+    setSending(false);
+
+    const data = await getDashboardSnapshot();
+    setSnapshot(data);
+    if (data.agentSummaries.length > 0) {
+      setSelectedRoute(data.agentSummaries[0].route);
+    }
   };
 
-  const handleQuickTransaction = async (tipo: 'gasto' | 'ingreso') => {
-    const label = tipo === 'gasto' ? 'Monto del gasto:' : 'Monto del ingreso:';
-    const montoStr = prompt(label);
-    if (!montoStr) return;
-    const desc = prompt("Descripción:");
-    if (!desc) return;
-    const res = await addQuickTransaction(parseFloat(montoStr), desc, tipo);
-    if (res.success) alert(`${tipo.charAt(0).toUpperCase() + tipo.slice(1)} registrado correctamente.`);
-  };
+  const toggleVoiceInput = () => {
+    const RecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!RecognitionCtor) return;
 
-  const getWeatherIcon = (cond: string) => {
-    const c = cond.toLowerCase();
-    if (c.includes('sun') || c.includes('clear') || c.includes('despejado')) return <Sun className="text-yellow-400" />;
-    if (c.includes('rain') || c.includes('shower') || c.includes('lluvia')) return <CloudRain className="text-blue-400" />;
-    if (c.includes('storm')) return <Zap className="text-yellow-500" />;
-    if (c.includes('cloud') && (c.includes('sun') || c.includes('partly'))) return <CloudSun className="text-orange-300" />;
-    return <Cloud className="text-gray-400" />;
+    if (listening) {
+      setListening(false);
+      return;
+    }
+
+    const recognition = new RecognitionCtor();
+    recognition.lang = "es-AR";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onstart = () => setListening(true);
+    recognition.onend = () => setListening(false);
+    recognition.onerror = () => setListening(false);
+    recognition.onresult = (event) => {
+      const transcript = Array.from(event.results)
+        .flatMap((result) => Array.from(result))
+        .map((part) => part.transcript)
+        .join(" ")
+        .trim();
+      if (transcript) {
+        setMessage(transcript);
+        void submitMessage(transcript);
+      }
+    };
+
+    recognition.start();
   };
 
   return (
-    <div className="h-screen overflow-hidden p-4 md:p-6 flex flex-col gap-4 selection:bg-[var(--color-jarvis-cyan)] selection:text-black">
-      
-      {/* HEADER TOP BAR */}
-      <header className="flex justify-between items-center glass-panel rounded-2xl px-6 py-4 neon-border">
-        <div className="flex items-center gap-3">
-          <Cpu className="text-[var(--color-jarvis-cyan)] glow-active" size={28} />
-          <div>
-            <h1 className="text-xl font-bold tracking-widest text-[#e5e7eb] uppercase">SISTEMA JARVIS</h1>
-            <div className="flex items-center gap-1 text-[var(--color-jarvis-cyan)] font-mono text-[10px] tracking-wider">
-               <span className="opacity-50">ESTADO:</span>
-               <select 
-                 value={systemMode}
-                 onChange={(e) => handleChangeMode(e.target.value)}
-                 className="bg-transparent border-none p-0 focus:ring-0 cursor-pointer uppercase appearance-none"
-                 style={{ WebkitAppearance: 'none' }}
-               >
-                 <option value="Estándar">ESTÁNDAR</option>
-                 <option value="Centinela">CENTINELA</option>
-                 <option value="Relax">RELAX</option>
-                 <option value="Ejecutor">EJECUTOR</option>
-                 <option value="Fiesta">FIESTA</option>
-               </select>
-               <div className="w-1.5 h-1.5 rounded-full bg-[var(--color-jarvis-cyan)] animate-pulse shadow-[0_0_8px_var(--color-jarvis-cyan)]" />
+    <div className="min-h-screen p-4 md:p-6 selection:bg-[var(--color-jarvis-cyan)] selection:text-black">
+      <div className="mx-auto flex max-w-[1600px] flex-col gap-4">
+        <header className="glass-panel neon-border rounded-2xl px-5 py-4">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="rounded-2xl border border-[var(--color-jarvis-cyan)]/20 bg-[var(--color-jarvis-cyan)]/10 p-3">
+                <Bot className="text-[var(--color-jarvis-cyan)]" size={26} />
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.32em] text-[var(--color-jarvis-muted)]">Jarvis Control Deck</p>
+                <h1 className="text-2xl font-semibold text-white">Panel operativo por agente</h1>
+                <p className="mt-1 max-w-2xl text-sm text-[var(--color-jarvis-muted)]">
+                  Acá ves qué agente trabajó, qué guardó, qué tareas están pendientes y además podés hablarle a Jarvis por texto o voz.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-right">
+                <p className="text-[10px] uppercase tracking-[0.25em] text-[var(--color-jarvis-muted)]">Hora local</p>
+                <p className="font-mono text-lg text-white">{time.toLocaleTimeString("es-AR", { hour12: false })}</p>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-2">
+                <p className="text-[10px] uppercase tracking-[0.25em] text-[var(--color-jarvis-muted)]">Modo</p>
+                <select
+                  value={snapshot.systemMode}
+                  onChange={(event) => handleModeChange(event.target.value)}
+                  className="bg-transparent text-sm text-white outline-none"
+                >
+                  {MODE_OPTIONS.map((mode) => (
+                    <option key={mode} value={mode} className="bg-slate-950">
+                      {mode}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
-        </div>
-        
-        <div className="flex items-center gap-6 font-mono text-sm">
-          <div className="flex flex-col items-end">
-            <span className="text-[#9ca3af]">HORA LOCAL</span>
-            <span className="text-[#e5e7eb] text-lg font-semibold tabular-nums">
-              {time.toLocaleTimeString('es-AR', { hour12: false })}
-            </span>
-          </div>
-          <div className="h-10 w-px bg-white/10 hidden md:block" />
-          <div className="hidden md:flex gap-4">
-            <StatusIcon icon={Wifi} active color="cyan" label="RED" />
-            <StatusIcon icon={Database} active={dbStatus === 'Online'} color="cyan" label="DB" />
-            <StatusIcon icon={Camera} active color="orange" label="SEG" />
-          </div>
-        </div>
-      </header>
+        </header>
 
-       {/* MAIN GRID */}
-      <main className="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 min-h-0 overflow-hidden">
-        
-        {/* LEFT COLUMN */}
-        <div className="lg:col-span-3 flex flex-col gap-4 h-full overflow-y-auto pr-1 custom-scrollbar">
-          <Card title="ESTADO DE PROTOCOLO" icon={Shield}>
-            <ul className="space-y-4">
-              <StatusCheck label="Seguridad Centinela" status="Online" color="cyan" />
-              <StatusCheck label="Domótica Hogar" status="Activo" color="cyan" />
-              <StatusCheck label="Motor Predictivo" status="Aprendiendo" color="orange" />
-              <StatusCheck label="Backup en la Nube" status="Sincronizado" color="cyan" />
-            </ul>
-             <div className="mt-6 pt-4 border-t border-white/10 flex flex-col gap-2">
-              <button 
-                onClick={() => handleQuickTransaction('ingreso')}
-                className="w-full flex items-center justify-between px-4 py-2 glass-panel rounded hover:bg-white/5 transition-colors border border-white/5 group"
-              >
-                <span className="text-xs font-mono uppercase tracking-wider text-[var(--color-jarvis-cyan)]">Registrar Ingreso</span>
-                <ChevronRight size={16} className="text-[var(--color-jarvis-cyan)] group-hover:translate-x-1 transition-transform" />
-              </button>
-              <button 
-                onClick={() => handleQuickTransaction('gasto')}
-                className="w-full flex items-center justify-between px-4 py-2 glass-panel rounded hover:bg-white/5 transition-colors border border-white/5 group"
-              >
-                <span className="text-xs font-mono uppercase tracking-wider text-[var(--color-jarvis-orange)]">Registrar Gasto</span>
-                <ChevronRight size={16} className="text-[var(--color-jarvis-orange)] group-hover:translate-x-1 transition-transform" />
-              </button>
+        <section className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+          <StatTile label="Agentes activos" value={String(snapshot.agentSummaries.length || 0)} icon={Cpu} accent="cyan" />
+          <StatTile label="Runs registrados" value={String(snapshot.totalAgentRuns)} icon={Activity} accent="cyan" />
+          <StatTile label="Chats únicos" value={String(snapshot.uniqueChats)} icon={MessageSquare} accent="orange" />
+          <StatTile label="Tareas pendientes" value={String(snapshot.pendingTasks)} icon={Clock3} accent="orange" />
+          <StatTile
+            label="Balance"
+            value={`$${snapshot.totalBalance.toLocaleString("es-AR", { maximumFractionDigits: 0 })}`}
+            icon={Wallet}
+            accent="cyan"
+          />
+        </section>
+
+        <main className="grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)_380px]">
+          <aside className="glass-panel rounded-2xl p-4">
+            <SectionTitle icon={Cpu} title="Mapa de agentes" />
+            <div className="mt-4 space-y-2">
+              {snapshot.agentSummaries.map((agent) => {
+                const meta = AGENT_META[agent.route];
+                const accent = meta?.accent || "cyan";
+                const Icon = meta?.icon || Cpu;
+                return (
+                  <button
+                    key={agent.route}
+                    onClick={() => setSelectedRoute(agent.route)}
+                    className={cn(
+                      "w-full rounded-xl border p-3 text-left transition-colors",
+                      selectedRoute === agent.route
+                        ? accent === "cyan"
+                          ? "border-[var(--color-jarvis-cyan)]/50 bg-[var(--color-jarvis-cyan)]/10"
+                          : "border-[var(--color-jarvis-orange)]/50 bg-[var(--color-jarvis-orange)]/10"
+                        : "border-white/8 bg-black/10 hover:bg-white/5",
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-start gap-3">
+                        <div className="rounded-lg border border-white/10 bg-black/20 p-2">
+                          <Icon
+                            size={16}
+                            className={accent === "cyan" ? "text-[var(--color-jarvis-cyan)]" : "text-[var(--color-jarvis-orange)]"}
+                          />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-white">{meta?.title || agent.label}</p>
+                          <p className="mt-1 text-xs text-[var(--color-jarvis-muted)]">{agent.totalRuns} runs</p>
+                        </div>
+                      </div>
+                      <ChevronRight size={16} className="mt-1 text-[var(--color-jarvis-muted)]" />
+                    </div>
+                    <p className="mt-3 line-clamp-2 text-xs text-[var(--color-jarvis-muted)]">
+                      {meta?.blurb || "Ruta disponible en el sistema."}
+                    </p>
+                  </button>
+                );
+              })}
             </div>
-          </Card>
 
-          <Card title="REPORTE DIARIO" icon={Cloud}>
-            <div className="space-y-4">
-              <div className="p-3 rounded-lg bg-[var(--color-jarvis-panel)] border border-white/5">
-                <div className="flex justify-between items-start mb-2">
-                  <div className="flex flex-col">
-                    <span className="text-sm font-mono text-[var(--color-jarvis-muted)] uppercase mb-1">Cielo y Clima</span>
-                    <div className="flex items-center gap-3">
-                      <div className="bg-white/5 p-2 rounded-lg border border-white/5 glow-active">
-                        {getWeatherIcon(weather.cond)}
+            <div className="mt-6 rounded-xl border border-white/8 bg-black/10 p-3">
+              <p className="text-[11px] uppercase tracking-[0.25em] text-[var(--color-jarvis-muted)]">Qué haría después</p>
+              <ul className="mt-3 space-y-2 text-sm text-gray-300">
+                <li>1. Afinar el router con clasificación real, no sólo keywords.</li>
+                <li>2. Darle herramientas concretas a cada agente.</li>
+                <li>3. Mostrar trazas, memoria y aprobaciones en tiempo real.</li>
+              </ul>
+            </div>
+          </aside>
+
+          <section className="flex flex-col gap-4">
+            <div className="glass-panel rounded-2xl p-4">
+              <SectionTitle icon={selectedAgent ? (AGENT_META[selectedAgent.route]?.icon || Brain) : Brain} title="Detalle del agente" />
+              {selectedAgent ? (
+                <div className="mt-4 grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+                  <div className="rounded-2xl border border-white/8 bg-black/10 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xl font-semibold text-white">
+                          {AGENT_META[selectedAgent.route]?.title || selectedAgent.label}
+                        </p>
+                        <p className="mt-1 text-sm text-[var(--color-jarvis-muted)]">
+                          {AGENT_META[selectedAgent.route]?.blurb || "Ruta activa dentro del sistema Jarvis."}
+                        </p>
                       </div>
-                      <div className="text-3xl font-bold flex items-baseline gap-1">
-                        {weather.temp.replace('+', '')}
-                      </div>
+                      <StatusPill status={selectedAgent.latestStatus} />
+                    </div>
+
+                    <div className="mt-4 grid gap-3 md:grid-cols-3">
+                      <MiniStat label="Última actividad" value={selectedAgent.latestAt ? formatTimeCompact(selectedAgent.latestAt) : "sin datos"} />
+                      <MiniStat label="Runs del agente" value={String(selectedAgent.totalRuns)} />
+                      <MiniStat label="Memorias visibles" value={String(selectedAgent.memoryItems.length)} />
+                    </div>
+
+                    <div className="mt-4 grid gap-3">
+                      <InfoBlock title="Último pedido" content={selectedAgent.latestPrompt || "Todavía no recibió un pedido claro."} />
+                      <InfoBlock title="Última respuesta" content={selectedAgent.latestResponse || "Todavía no produjo una salida visible."} />
                     </div>
                   </div>
-                  <div className="text-right">
-                    <span className="text-xs text-[var(--color-jarvis-cyan)] font-mono block">BUENOS AIRES</span>
-                    <span className="text-[10px] text-[var(--color-jarvis-muted)] uppercase tracking-tighter">{weather.cond}</span>
+
+                  <div className="rounded-2xl border border-white/8 bg-black/10 p-4">
+                    <p className="text-[11px] uppercase tracking-[0.25em] text-[var(--color-jarvis-muted)]">Memoria operativa</p>
+                    <div className="mt-3 space-y-3">
+                      {selectedAgent.memoryItems.length > 0 ? (
+                        selectedAgent.memoryItems.slice(0, 4).map((item, index) => (
+                          <div key={`${item.timestamp}-${index}`} className="rounded-xl border border-white/8 bg-white/3 p-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-[10px] uppercase tracking-[0.25em] text-[var(--color-jarvis-cyan)]">
+                                {item.category}
+                              </span>
+                              <span className="text-[10px] text-[var(--color-jarvis-muted)]">{formatTimeCompact(item.timestamp)}</span>
+                            </div>
+                            <p className="mt-2 text-sm text-gray-300">{item.content}</p>
+                          </div>
+                        ))
+                      ) : (
+                        <EmptyState text="Este agente todavía no dejó memoria visible." />
+                      )}
+                    </div>
                   </div>
                 </div>
-                
-                <div className="mt-4 grid grid-cols-2 gap-2">
-                  <div className="flex items-center gap-2 bg-white/5 p-2 rounded-lg border border-white/5">
-                    <Droplets size={14} className="text-blue-400" />
-                    <div className="flex flex-col">
-                      <span className="text-[8px] text-gray-500 uppercase">Humedad</span>
-                      <span className="text-xs font-mono">{weather.humidity}</span>
-                    </div>
+              ) : (
+                <EmptyState text="Todavía no hay agentes con actividad suficiente para mostrar." />
+              )}
+            </div>
+
+            <div className="grid gap-4 xl:grid-cols-[1fr_0.95fr]">
+              <div className="glass-panel rounded-2xl p-4">
+                <SectionTitle icon={MessageSquare} title="Chat web con Jarvis" />
+                <div className="mt-4 flex h-[440px] flex-col rounded-2xl border border-white/8 bg-black/15">
+                  <div className="flex-1 space-y-3 overflow-y-auto p-4 custom-scrollbar">
+                    {chatFeed.length > 0 ? (
+                      chatFeed.map((item, index) => (
+                        <div key={`${item.timestamp}-${index}`} className={cn("flex", item.role === "user" ? "justify-end" : "justify-start")}>
+                          <div
+                            className={cn(
+                              "max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed",
+                              item.role === "user"
+                                ? "bg-[var(--color-jarvis-cyan)]/15 text-white border border-[var(--color-jarvis-cyan)]/20"
+                                : "bg-white/6 text-gray-200 border border-white/10",
+                            )}
+                          >
+                            <p>{item.content}</p>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <EmptyState text="Todavía no le hablaste desde el panel. Escribile acá abajo o usá el micrófono." />
+                    )}
+                    {sending ? (
+                      <div className="flex justify-start">
+                        <div className="rounded-2xl border border-white/10 bg-white/6 px-4 py-3 text-sm text-gray-300">
+                          <span className="inline-flex items-center gap-2">
+                            <LoaderCircle className="animate-spin" size={14} />
+                            Jarvis está pensando...
+                          </span>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
-                  <div className="flex items-center gap-2 bg-white/5 p-2 rounded-lg border border-white/5">
-                    <Wind size={14} className="text-gray-400" />
-                    <div className="flex flex-col">
-                      <span className="text-[8px] text-gray-500 uppercase">Viento</span>
-                      <span className="text-xs font-mono">{weather.wind}</span>
+
+                  <div className="border-t border-white/8 p-4">
+                    <div className="flex gap-3">
+                      <textarea
+                        value={message}
+                        onChange={(event) => setMessage(event.target.value)}
+                        placeholder="Escribile a Jarvis desde la web..."
+                        className="min-h-[92px] flex-1 resize-none rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none placeholder:text-[var(--color-jarvis-muted)]"
+                      />
+                      <div className="flex w-[120px] flex-col gap-3">
+                        <button
+                          onClick={() => void submitMessage(message)}
+                          disabled={sending || !message.trim()}
+                          className="flex h-11 items-center justify-center rounded-xl bg-[var(--color-jarvis-cyan)]/15 text-sm font-medium text-[var(--color-jarvis-cyan)] transition hover:bg-[var(--color-jarvis-cyan)]/20 disabled:opacity-40"
+                        >
+                          Enviar
+                        </button>
+                        <button
+                          onClick={toggleVoiceInput}
+                          disabled={!voiceSupported}
+                          className={cn(
+                            "flex h-11 items-center justify-center rounded-xl border text-sm font-medium transition",
+                            listening
+                              ? "border-[var(--color-jarvis-orange)]/40 bg-[var(--color-jarvis-orange)]/15 text-[var(--color-jarvis-orange)]"
+                              : "border-white/10 bg-black/20 text-white hover:bg-white/5",
+                            !voiceSupported && "opacity-40",
+                          )}
+                        >
+                          <span className="inline-flex items-center gap-2">
+                            {listening ? <MicOff size={16} /> : <Mic size={16} />}
+                            {listening ? "Escuchando" : "Micrófono"}
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+                    <p className="mt-3 text-xs text-[var(--color-jarvis-muted)]">
+                      El micrófono usa el reconocimiento de voz del navegador. Si tu browser no lo soporta, seguís teniendo el chat escrito.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-4">
+                <div className="glass-panel rounded-2xl p-4">
+                  <SectionTitle icon={Activity} title="Rutas recientes" />
+                  <div className="mt-4 space-y-3">
+                    {snapshot.agentRuns.slice(0, 6).map((run, index) => (
+                      <div key={`${run.timestamp}-${index}`} className="rounded-xl border border-white/8 bg-black/10 p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-semibold text-white">{AGENT_META[run.route]?.title || run.label}</p>
+                          <StatusPill status={run.status} compact />
+                        </div>
+                        <p className="mt-2 text-xs text-[var(--color-jarvis-muted)]">{run.userMessage}</p>
+                        <p className="mt-2 line-clamp-3 text-sm text-gray-300">{run.responsePreview}</p>
+                      </div>
+                    ))}
+                    {snapshot.agentRuns.length === 0 ? <EmptyState text="Todavía no hay runs de agentes para mostrar." /> : null}
+                  </div>
+                </div>
+
+                <div className="glass-panel rounded-2xl p-4">
+                  <SectionTitle icon={Wallet} title="Finanzas y tareas" />
+                  <div className="mt-4 grid gap-4">
+                    <div className="rounded-2xl border border-white/8 bg-black/10 p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-[11px] uppercase tracking-[0.25em] text-[var(--color-jarvis-muted)]">Balance total</p>
+                          <p className="mt-1 text-2xl font-semibold text-white">
+                            ${snapshot.totalBalance.toLocaleString("es-AR", { maximumFractionDigits: 0 })}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <ActionButton label="Ingreso" onClick={() => void handleQuickTransaction("ingreso")} accent="cyan" />
+                          <ActionButton label="Gasto" onClick={() => void handleQuickTransaction("gasto")} accent="orange" />
+                        </div>
+                      </div>
+                      <div className="mt-4 h-36">
+                        {chartsReady ? (
+                          <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={snapshot.chartData}>
+                              <defs>
+                                <linearGradient id="financeGradient" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="5%" stopColor="var(--color-jarvis-cyan)" stopOpacity={0.3} />
+                                  <stop offset="95%" stopColor="var(--color-jarvis-cyan)" stopOpacity={0} />
+                                </linearGradient>
+                              </defs>
+                              <XAxis dataKey="name" stroke="#6b7280" fontSize={10} axisLine={false} tickLine={false} />
+                              <RechartsTooltip
+                                contentStyle={{
+                                  backgroundColor: "rgba(2, 6, 23, 0.95)",
+                                  border: "1px solid rgba(255,255,255,0.08)",
+                                  borderRadius: 12,
+                                }}
+                              />
+                              <Area type="monotone" dataKey="income" stroke="var(--color-jarvis-cyan)" fill="url(#financeGradient)" strokeWidth={2} />
+                              <Area type="monotone" dataKey="expense" stroke="var(--color-jarvis-orange)" fillOpacity={0} strokeWidth={2} />
+                            </AreaChart>
+                          </ResponsiveContainer>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="rounded-2xl border border-white/8 bg-black/10 p-4">
+                        <p className="text-[11px] uppercase tracking-[0.25em] text-[var(--color-jarvis-muted)]">Tareas abiertas</p>
+                        <div className="mt-3 space-y-2">
+                          {snapshot.tasks.slice(0, 4).map((task) => (
+                            <div key={task.id} className="rounded-xl border border-white/8 bg-white/3 p-3">
+                              <p className="text-sm font-medium text-white">{task.titulo}</p>
+                              <p className="mt-1 text-xs text-[var(--color-jarvis-muted)]">{task.descripcion || "Sin descripción."}</p>
+                            </div>
+                          ))}
+                          {snapshot.tasks.length === 0 ? <EmptyState text="No hay tareas visibles." /> : null}
+                        </div>
+                      </div>
+
+                      <div className="rounded-2xl border border-white/8 bg-black/10 p-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-[11px] uppercase tracking-[0.25em] text-[var(--color-jarvis-muted)]">Logs del sistema</p>
+                          <button onClick={() => void handleClearLogs()} className="text-xs text-[var(--color-jarvis-orange)] hover:underline">
+                            limpiar
+                          </button>
+                        </div>
+                        <div className="mt-3 space-y-2">
+                          {snapshot.logs.slice(0, 5).map((log, index) => (
+                            <div key={`${log.fecha}-${index}`} className="rounded-xl border border-white/8 bg-white/3 p-3">
+                              <p className="text-[10px] uppercase tracking-[0.25em] text-[var(--color-jarvis-cyan)]">
+                                {formatTimeCompact(log.fecha)}
+                              </p>
+                              <p className="mt-1 text-sm text-gray-300">{log.evento}</p>
+                            </div>
+                          ))}
+                          {snapshot.logs.length === 0 ? <EmptyState text="No hay logs generales para mostrar." /> : null}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-              <div className="p-3 rounded-lg bg-[var(--color-jarvis-panel)] border border-white/5">
-                <div className="flex items-start gap-3">
-                  <AlertCircle size={18} className="text-[var(--color-jarvis-orange)] mt-0.5 shrink-0" />
-                  <p className="text-sm text-gray-300">
-                    Señor, su agenda está despejada para hoy. Sugiero revisar las transacciones recientes.
-                  </p>
-                </div>
-              </div>
             </div>
-          </Card>
+          </section>
 
-          <Card title="CEREBRO ML - PROPUESTAS" icon={Cpu}>
-            <div className="space-y-4">
-              {propuestas.length > 0 ? propuestas.map((p, i) => (
-                <div key={i} className="p-3 rounded-lg bg-[var(--color-jarvis-panel)] border border-[var(--color-jarvis-orange)]/30 opacity-90 text-sm mb-2 glow-active shadow-[0_0_10px_rgba(249,115,22,0.1)]">
-                  <div className="flex justify-between font-mono text-[10px] text-[var(--color-jarvis-orange)] mb-1 uppercase tracking-widest">
-                    <span>REGLA PENDIENTE</span>
-                    <span>{new Date(p.fecha).toLocaleDateString('es-AR')}</span>
-                  </div>
-                  <p className="text-[#e5e7eb] leading-tight text-xs mb-3">{p.descripcion}</p>
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => handlePropuesta(p.id, 'aprobada')}
-                      className="flex-1 text-[10px] py-1 bg-green-500/10 border border-green-500/30 text-green-400 rounded hover:bg-green-500/20 transition-colors uppercase font-mono"
-                    >Aprobar</button>
-                    <button 
-                      onClick={() => handlePropuesta(p.id, 'rechazada')}
-                      className="flex-1 text-[10px] py-1 bg-red-500/10 border border-red-500/30 text-red-400 rounded hover:bg-red-500/20 transition-colors uppercase font-mono"
-                    >Ignorar</button>
-                  </div>
-                </div>
-              )) : (
-                 <p className="text-sm font-mono text-center text-[var(--color-jarvis-muted)] p-4 opacity-70">Detectando patrones de comportamiento...</p>
-              )}
+          <aside className="glass-panel rounded-2xl p-4">
+            <SectionTitle icon={Database} title="Resumen global" />
+            <div className="mt-4 grid gap-4">
+              <SummaryList
+                title="Calendario"
+                items={snapshot.calendar.map((item) => `${formatTimeCompact(item.fecha)} · ${item.titulo}`)}
+                empty="No hay eventos próximos."
+              />
+              <SummaryList
+                title="Aprobaciones"
+                items={snapshot.proposals.map((item) => item.descripcion)}
+                empty="No hay propuestas pendientes."
+              />
+              <SummaryList
+                title="Conversación reciente"
+                items={snapshot.conversations.slice(0, 6).map((item: AgentConversationEntry) => `${item.role}: ${item.content}`)}
+                empty="No hay conversación reciente."
+              />
             </div>
-          </Card>
-        </div>
-
-        {/* CENTER COLUMN (THE AI CORE) */}
-        <div className="lg:col-span-6 flex flex-col gap-4 items-center justify-center relative h-full">
-          {/* Orbital rings */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden">
-            <div className="w-[80%] h-[80%] max-w-[500px] border border-[var(--color-jarvis-cyan)]/20 rounded-full animate-[spin_60s_linear_infinite]" />
-            <div className="absolute w-[60%] h-[60%] max-w-[350px] border border-[var(--color-jarvis-orange)]/10 rounded-full animate-[spin_40s_linear_infinite_reverse]" />
-            <div className="absolute w-[40%] h-[40%] max-w-[200px] border border-[var(--color-jarvis-cyan)]/30 rounded-full animate-[spin_20s_linear_infinite]" />
-          </div>
-
-          <div 
-            className="relative z-10 text-center glass-panel p-8 rounded-full border border-[var(--color-jarvis-cyan)]/30 w-64 h-64 flex flex-col items-center justify-center glow-active cursor-pointer hover:scale-105 transition-transform duration-500 group"
-            onClick={() => alert("Módulo de voz web en desarrollo. ¡Por favor usa el audio de Telegram para comunicarte con JARVIS por ahora!")}
-          >
-            <div className="absolute inset-0 rounded-full bg-[var(--color-jarvis-cyan)]/5 blur-xl group-hover:bg-[var(--color-jarvis-cyan)]/20 transition-colors duration-500" />
-            <Mic className="text-[var(--color-jarvis-cyan)] mb-4" size={48} />
-            <h2 className="text-2xl font-light tracking-widest text-white">ESCUCHANDO</h2>
-            <div className="flex gap-1 mt-4">
-              {voiceBars.map((height, i) => (
-                <div key={i} className="w-1.5 bg-[var(--color-jarvis-cyan)] rounded-full animate-pulse" style={{ height: `${height}px`, animationDelay: `${(i + 1) * 0.1}s` }} />
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* RIGHT COLUMN */}
-        <div className="lg:col-span-3 flex flex-col gap-4 h-full overflow-y-auto pr-1 custom-scrollbar">
-          <Card title="PRÓXIMOS EVENTOS" icon={AlertCircle}>
-            <div className="space-y-3">
-              {calendar.length > 0 ? calendar.map((ev, i) => (
-                <div key={i} className="flex gap-3 items-start p-2 rounded bg-white/5 border border-white/5">
-                  <div className="flex flex-col items-center justify-center bg-[var(--color-jarvis-cyan)]/10 p-1.5 rounded min-w-[40px]">
-                    <span className="text-[10px] font-bold text-[var(--color-jarvis-cyan)] uppercase">
-                      {new Date(ev.fecha).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-                  <div className="flex flex-col flex-1 min-w-0">
-                    <span className="text-xs font-semibold text-white truncate">{ev.titulo}</span>
-                    <span className="text-[9px] text-[var(--color-jarvis-muted)] uppercase truncate">
-                      {new Date(ev.fecha).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })} {ev.ubicacion ? `• ${ev.ubicacion}` : ''}
-                    </span>
-                  </div>
-                </div>
-              )) : (
-                <div className="text-center py-4 opacity-50 grayscale">
-                  <p className="text-[10px] font-mono mb-1">CALENDARIO EN ESPERA</p>
-                  <p className="text-[8px] uppercase tracking-tighter">Conecte credentials.json para sincronizar citas reales</p>
-                </div>
-              )}
-            </div>
-          </Card>
-
-          <Card title="MONITOREO CRYPTO" icon={Bitcoin}>
-            <div className="mb-4">
-               <div className="text-xs font-mono text-[var(--color-jarvis-muted)] mb-1">BTC/USDT</div>
-               <div className="text-3xl font-bold text-white flex items-center gap-2">
-                 {btcPrice ? `$${btcPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'Calculando...'}
-                 {btcPrice !== null && (
-                   <span className={cn("text-sm flex items-center px-2 py-0.5 rounded", btcChange >= 0 ? "text-green-400 bg-green-400/10" : "text-red-400 bg-red-400/10")}>
-                     {btcChange >= 0 ? <TrendingUp size={14} className="mr-1" /> : null}
-                     {btcChange > 0 ? '+' : ''}{btcChange.toFixed(2)}%
-                   </span>
-                 )}
-               </div>
-            </div>
-            <div className="h-32 -mx-4 -mb-4">
-              {chartsReady ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={cryptoData}>
-                    <defs>
-                      <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="var(--color-jarvis-cyan)" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="var(--color-jarvis-cyan)" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <Area type="monotone" dataKey="price" stroke="var(--color-jarvis-cyan)" fillOpacity={1} fill="url(#colorPrice)" strokeWidth={2} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              ) : null}
-            </div>
-          </Card>
-
-          <Card title="MÉTRICAS FINANCIERAS" icon={Activity}>
-             <div className="flex justify-between items-center mb-6">
-               <div>
-                  <div className="text-xs font-mono text-[#9ca3af]">BALANCE TOTAL</div>
-                  <div className="text-xl text-white">${totalBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-               </div>
-                <div className="text-right">
-                  <div className="text-xs font-mono text-[#9ca3af]">GASTOS DEL MES</div>
-                  <div className="text-xl text-[var(--color-jarvis-orange)]">${mtdExpense.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-               </div>
-             </div>
-             
-             <div className="h-40 -mx-4 -mb-2 mt-4">
-               {chartsReady ? (
-                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={financeData}>
-                    <XAxis dataKey="name" stroke="#4b5563" fontSize={10} axisLine={false} tickLine={false} />
-                    <RechartsTooltip 
-                      contentStyle={{ backgroundColor: 'rgba(17, 24, 39, 0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
-                      itemStyle={{ color: '#e5e7eb' }}
-                    />
-                    <Line type="monotone" dataKey="income" stroke="var(--color-jarvis-cyan)" strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="expense" stroke="var(--color-jarvis-orange)" strokeWidth={2} dot={false} />
-                  </LineChart>
-                 </ResponsiveContainer>
-               ) : null}
-             </div>
-          </Card>
-
-          <Card title="TELEMETRÍA EN VIVO" icon={Activity}>
-             <div className="flex justify-between items-center mb-2 px-1">
-                <span className="text-[10px] font-mono text-[var(--color-jarvis-muted)] tracking-widest uppercase">Logs de Sistema</span>
-                <button 
-                  onClick={handleClearLogs}
-                  className="text-[9px] font-mono text-[var(--color-jarvis-orange)] hover:underline opacity-70"
-                >LIMPIAR TODO</button>
-             </div>
-             <div className="font-mono text-[10px] flex-1 overflow-y-auto space-y-1 pr-2 tracking-tight overflow-x-hidden custom-scrollbar max-h-[250px]">
-                {logs.length > 0 ? logs.map((l, i) => (
-                  <div key={i} className="flex gap-2 border-b border-white/5 py-1.5 opacity-80 hover:opacity-100 transition-opacity">
-                    <span className="text-[var(--color-jarvis-cyan)] whitespace-nowrap">
-                      [{new Date(l.fecha).toLocaleTimeString('es-AR', {hour: '2-digit', minute:'2-digit', second:'2-digit'})}]
-                    </span>
-                    <span className="text-gray-300 break-words">{l.evento}</span>
-                  </div>
-                )) : (
-                  <p className="text-center text-[var(--color-jarvis-muted)] opacity-50 pt-4">No hay datos telemétricos.</p>
-                )}
-             </div>
-          </Card>
-        </div>
-
-      </main>
-    </div>
-  );
-}
-
-// Subcomponents
-
-function Card({ title, icon: Icon, children }: { title: string, icon: LucideIcon, children: React.ReactNode }) {
-  return (
-    <div className="glass-panel rounded-2xl p-4 flex flex-col relative overflow-hidden group shrink-0">
-      <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-[var(--color-jarvis-cyan)] to-transparent opacity-50" />
-      <div className="flex items-center justify-between mb-4 pb-2 border-b border-white/10 border-dashed">
-        <h3 className="font-mono text-sm tracking-widest text-[#e5e7eb]">{title}</h3>
-        <Icon size={16} className="text-[var(--color-jarvis-cyan)]" />
-      </div>
-      <div className="flex-1">
-        {children}
+          </aside>
+        </main>
       </div>
     </div>
   );
 }
 
-function StatusIcon({ icon: Icon, active, color, label }: { icon: LucideIcon, active: boolean, color: 'cyan' | 'orange', label: string }) {
-  const colorClass = color === 'cyan' ? 'text-[var(--color-jarvis-cyan)]' : 'text-[var(--color-jarvis-orange)]';
+function SectionTitle({ icon: Icon, title }: { icon: LucideIcon; title: string }) {
   return (
-    <div className="flex flex-col items-center gap-1 opacity-80 hover:opacity-100 transition-opacity">
-      <Icon size={20} className={cn(active && colorClass, active && "glow-active")} />
-      <span className="text-[10px] tracking-widest">{label}</span>
+    <div className="flex items-center gap-2 border-b border-white/8 pb-3">
+      <Icon size={16} className="text-[var(--color-jarvis-cyan)]" />
+      <h2 className="text-sm font-mono uppercase tracking-[0.28em] text-white">{title}</h2>
     </div>
   );
 }
 
-function StatusCheck({ label, status, color }: { label: string, status: string, color: 'cyan'|'orange' }) {
-  const colorClass = color === 'cyan' ? 'text-[var(--color-jarvis-cyan)]' : 'text-[var(--color-jarvis-orange)]';
-  const glowBorderClass = color === 'cyan' ? 'border-[var(--color-jarvis-cyan)]/30' : 'border-[var(--color-jarvis-orange)]/30';
-  
+function StatTile({
+  label,
+  value,
+  icon: Icon,
+  accent,
+}: {
+  label: string;
+  value: string;
+  icon: LucideIcon;
+  accent: "cyan" | "orange";
+}) {
   return (
-    <li className="flex justify-between items-center text-sm font-mono cursor-default hover:bg-white/5 p-1 -mx-1 rounded transition-colors group">
-      <span className="text-[#9ca3af] group-hover:text-white transition-colors">{label}</span>
-      <div className="flex items-center gap-2">
-        <span className={cn(colorClass, "text-xs tracking-wider uppercase")}>{status}</span>
-        <div className={cn("w-2 h-2 rounded-full border shadow-sm", colorClass.replace('text-', 'bg-'), glowBorderClass, "opacity-80 animate-pulse")} />
+    <div className="glass-panel rounded-2xl p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.25em] text-[var(--color-jarvis-muted)]">{label}</p>
+          <p className="mt-1 text-2xl font-semibold text-white">{value}</p>
+        </div>
+        <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+          <Icon size={18} className={accent === "cyan" ? "text-[var(--color-jarvis-cyan)]" : "text-[var(--color-jarvis-orange)]"} />
+        </div>
       </div>
-    </li>
+    </div>
   );
+}
+
+function MiniStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-white/8 bg-white/3 p-3">
+      <p className="text-[10px] uppercase tracking-[0.25em] text-[var(--color-jarvis-muted)]">{label}</p>
+      <p className="mt-1 text-sm font-medium text-white">{value}</p>
+    </div>
+  );
+}
+
+function InfoBlock({ title, content }: { title: string; content: string }) {
+  return (
+    <div className="rounded-xl border border-white/8 bg-white/3 p-3">
+      <p className="text-[10px] uppercase tracking-[0.25em] text-[var(--color-jarvis-muted)]">{title}</p>
+      <p className="mt-2 text-sm text-gray-300">{content}</p>
+    </div>
+  );
+}
+
+function StatusPill({ status, compact = false }: { status: string; compact?: boolean }) {
+  const normalized = status.toLowerCase();
+  const tone =
+    normalized === "completed" || normalized === "live" || normalized === "online"
+      ? "text-[var(--color-jarvis-cyan)] bg-[var(--color-jarvis-cyan)]/10 border-[var(--color-jarvis-cyan)]/20"
+      : normalized.includes("await") || normalized.includes("pending")
+        ? "text-[var(--color-jarvis-orange)] bg-[var(--color-jarvis-orange)]/10 border-[var(--color-jarvis-orange)]/20"
+        : "text-gray-300 bg-white/5 border-white/10";
+
+  return (
+    <span className={cn("inline-flex items-center rounded-full border px-2.5 py-1 uppercase tracking-[0.2em]", compact ? "text-[9px]" : "text-[10px]", tone)}>
+      {status}
+    </span>
+  );
+}
+
+function ActionButton({
+  label,
+  onClick,
+  accent,
+}: {
+  label: string;
+  onClick: () => void;
+  accent: "cyan" | "orange";
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "rounded-xl border px-3 py-2 text-xs font-medium transition",
+        accent === "cyan"
+          ? "border-[var(--color-jarvis-cyan)]/20 bg-[var(--color-jarvis-cyan)]/10 text-[var(--color-jarvis-cyan)] hover:bg-[var(--color-jarvis-cyan)]/15"
+          : "border-[var(--color-jarvis-orange)]/20 bg-[var(--color-jarvis-orange)]/10 text-[var(--color-jarvis-orange)] hover:bg-[var(--color-jarvis-orange)]/15",
+      )}
+    >
+      {label}
+    </button>
+  );
+}
+
+function SummaryList({ title, items, empty }: { title: string; items: string[]; empty: string }) {
+  return (
+    <div className="rounded-2xl border border-white/8 bg-black/10 p-4">
+      <p className="text-[11px] uppercase tracking-[0.25em] text-[var(--color-jarvis-muted)]">{title}</p>
+      <div className="mt-3 space-y-2">
+        {items.length > 0 ? (
+          items.slice(0, 5).map((item, index) => (
+            <div key={`${title}-${index}`} className="rounded-xl border border-white/8 bg-white/3 p-3 text-sm text-gray-300">
+              {item}
+            </div>
+          ))
+        ) : (
+          <EmptyState text={empty} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function EmptyState({ text }: { text: string }) {
+  return (
+    <div className="rounded-xl border border-dashed border-white/10 bg-black/10 px-4 py-5 text-center text-sm text-[var(--color-jarvis-muted)]">
+      {text}
+    </div>
+  );
+}
+
+function formatTimeCompact(value: string) {
+  return new Date(value).toLocaleString("es-AR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
