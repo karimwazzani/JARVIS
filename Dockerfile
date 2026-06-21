@@ -22,6 +22,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copia el código fuente
 COPY src/ /app/src/
+COPY api/ /app/api/
 
 # Comando principal para mantener a JARVIS corriendo 24/7
-CMD ["python", "src/main.py"]
+CMD ["sh", "-c", "gunicorn api.index:app --bind 0.0.0.0:${PORT:-10000}"]
