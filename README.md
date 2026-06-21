@@ -72,6 +72,9 @@ Opcionales recomendadas:
 - `DASHBOARD_USER`
 - `DASHBOARD_PASSWORD`
 - `DATABASE_URL` o `POSTGRES_URL`
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_ANON_KEY`
 - `TAPO_USER`
 - `TAPO_PASSWORD`
 - `TAPO_IP`
@@ -118,10 +121,10 @@ npm run build
 
 ### Vercel
 
-- `vercel.json` ya apunta a `web/`
-- La salida de build se genera en `web/.next-prod`
+- El proyecto debe apuntar a `web/` como Root Directory
+- La salida de build se genera en `.next-prod`
 - Defini `DASHBOARD_USER` y `DASHBOARD_PASSWORD` si queres proteger el panel
-- Si el dashboard usa Postgres, agrega `DATABASE_URL`
+- El dashboard puede trabajar directo con Supabase usando `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY`
 
 ## Estado actual
 

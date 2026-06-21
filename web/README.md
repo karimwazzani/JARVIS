@@ -24,7 +24,9 @@ npm run build
 
 ## Variables de entorno utiles
 
-- `DATABASE_URL`: conexion al Postgres usado por el dashboard
+- `SUPABASE_URL`: URL del proyecto Supabase
+- `SUPABASE_SERVICE_ROLE_KEY`: clave server-side para lecturas y acciones del dashboard
+- `SUPABASE_ANON_KEY`: opcional, util para lecturas cliente o integraciones futuras
 - `DASHBOARD_USER`: usuario para Basic Auth opcional
 - `DASHBOARD_PASSWORD`: clave para Basic Auth opcional
 - `NEXT_DIST_DIR`: override opcional del directorio de salida
@@ -34,4 +36,4 @@ npm run build
 - Vercel usa `../vercel.json`
 - La build sale a `.next-prod`
 - El acceso web puede protegerse con `web/src/proxy.ts`
-- El dashboard hoy sigue leyendo el backend actual; una fase siguiente razonable es exponer trazas y estado por agente
+- El dashboard hoy consulta Supabase server-side desde `web/src/app/actions.ts`
