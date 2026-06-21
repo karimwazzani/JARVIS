@@ -1,7 +1,8 @@
+import json
 import os
 from datetime import datetime
 from zoneinfo import ZoneInfo
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Boolean
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Boolean, Text
 from sqlalchemy.orm import declarative_base, sessionmaker
 from dotenv import load_dotenv
 
@@ -131,8 +132,115 @@ class PropuestaAutomatizacion(Base):
     estado = Column(String, default="pendiente") # "pendiente", "aprobada", "rechazada"
     fecha_creacion = Column(DateTime, default=get_now)
 
+class AgentRun(Base):
+    """Traza cada turno ejecutado por el sistema agentico."""
+    __tablename__ = "agent_runs"
+    id = Column(Integer, primary_key=True, index=True)
+    chat_id = Column(String, index=True)
+    route = Column(String, index=True)
+    user_message = Column(Text)
+    response_preview = Column(Text)
+    status = Column(String, default="completed")
+    requires_confirmation = Column(Boolean, default=False)
+    metadata_json = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=get_now)
+
+class AgentMemoryEntry(Base):
+    """Memoria operativa resumida por agente y por chat."""
+    __tablename__ = "agent_memory_entries"
+    id = Column(Integer, primary_key=True, index=True)
+    chat_id = Column(String, index=True)
+    agent_id = Column(String, index=True)
+    category = Column(String, index=True)
+    content = Column(Text)
+    created_at = Column(DateTime, default=get_now)
+
+class AgentTask(Base):
+    """Backlog operativo para el runtime agentico."""
+    __tablename__ = "agent_tasks"
+    id = Column(Integer, primary_key=True, index=True)
+    chat_id = Column(String, index=True)
+    agent_id = Column(String, index=True)
+    title = Column(String)
+    summary = Column(Text, nullable=True)
+    status = Column(String, default="open")
+    priority = Column(String, default="normal")
+    payload_json = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=get_now)
+    updated_at = Column(DateTime, default=get_now, onupdate=get_now)
+
 def init_db():
     # Crea las tablas si no existen
     print("DEBUG: Iniciando creación de tablas...", flush=True)
     Base.metadata.create_all(bind=engine)
     print("DEBUG: Tablas creadas/verificadas.", flush=True)
+
+
+def store_conversation_message(chat_id: str, role: str, content: str) -> None:
+    db = SessionLocal()
+    try:
+        db.add(Conversacion(chat_id=str(chat_id), rol=role, contenido=content))
+        db.commit()
+    finally:
+        db.close()
+
+
+def fetch_conversation_history(chat_id: str, limit: int = 20) -> list[dict[str, str]]:
+    db = SessionLocal()
+    try:
+        rows = (
+            db.query(Conversacion)
+            .filter(Conversacion.chat_id == str(chat_id))
+            .order_by(Conversacion.id.desc())
+            .limit(limit)
+            .all()
+        )
+    finally:
+        db.close()
+
+    rows.reverse()
+    return [{"role": row.rol, "content": row.contenido} for row in rows]
+
+
+def record_agent_run(
+    chat_id: str,
+    route: str,
+    user_message: str,
+    response_preview: str,
+    *,
+    status: str = "completed",
+    requires_confirmation: bool = False,
+    metadata: dict | None = None,
+) -> None:
+    db = SessionLocal()
+    try:
+        db.add(
+            AgentRun(
+                chat_id=str(chat_id),
+                route=route,
+                user_message=user_message,
+                response_preview=response_preview[:1200],
+                status=status,
+                requires_confirmation=requires_confirmation,
+                metadata_json=json.dumps(metadata or {}, ensure_ascii=False),
+            )
+        )
+        db.commit()
+    finally:
+        db.close()
+
+
+def add_agent_memory(chat_id: str, agent_id: str, category: str, content: str) -> None:
+    db = SessionLocal()
+    try:
+        db.add(
+            AgentMemoryEntry(
+                chat_id=str(chat_id),
+                agent_id=agent_id,
+                category=category,
+                content=content[:2000],
+            )
+        )
+        db.commit()
+    finally:
+        db.close()

@@ -17,9 +17,29 @@ class JarvisOrchestrator:
         selected_agent = self._select_agent(context.user_message)
         decision = self.guardian.evaluate(selected_agent.agent_id, context.user_message)
 
+        if decision.requires_confirmation and not decision.approved:
+            response = self._compose_confirmation_request(selected_agent.label, decision.rationale)
+            updated_history = context.history + [{"role": "assistant", "content": response}]
+            self.memory_keeper.capture_turn(
+                chat_id=chat_id,
+                route=selected_agent.agent_id,
+                user_message=context.user_message,
+                response=response,
+                decision=decision,
+                status="awaiting_confirmation",
+            )
+            return response, updated_history
+
         result = selected_agent.run(context)
         response = self._compose_response(result, decision.rationale if decision.requires_confirmation else "")
-        updated_history = history + [{"role": "assistant", "content": response}]
+        updated_history = context.history + [{"role": "assistant", "content": response}]
+        self.memory_keeper.capture_turn(
+            chat_id=chat_id,
+            route=result.route,
+            user_message=context.user_message,
+            response=response,
+            decision=decision,
+        )
         return response, updated_history
 
     def _select_agent(self, user_message: str):
@@ -34,9 +54,18 @@ class JarvisOrchestrator:
         return top_agent
 
     def _compose_response(self, result: AgentResult, guardian_note: str) -> str:
+        agent_banner = f"[{result.route}]"
         if not guardian_note:
-            return result.response
-        return f"{result.response}\n\n[Guardian] {guardian_note}"
+            return f"{agent_banner} {result.response}"
+        return f"{agent_banner} {result.response}\n\n[Guardian] {guardian_note}"
+
+    def _compose_confirmation_request(self, agent_label: str, rationale: str) -> str:
+        return (
+            f"[guardian] La solicitud quedo preparada para {agent_label}, "
+            "pero la deje en espera.\n\n"
+            f"{rationale}\n"
+            "Si queres ejecutarla, mandame una confirmacion explicita en el mismo mensaje."
+        )
 
 
 _runtime = JarvisOrchestrator()

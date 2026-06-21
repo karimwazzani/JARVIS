@@ -6,7 +6,7 @@ from src.core.types import GuardianDecision
 class Guardian:
     """Human-in-the-loop guardrails for sensitive actions."""
 
-    _sensitive_keywords = {
+    _confirmation_required_keywords = {
         "deploy",
         "production",
         "prod",
@@ -15,21 +15,32 @@ class Guardian:
         "postea",
         "postear",
         "elimina",
+        "eliminar",
         "borrar",
         "borra",
         "transferi",
+        "transferir",
         "paga",
         "pagar",
-        "credencial",
-        "password",
-        "token",
-        "apikey",
-        "api key",
+    }
+    _confirmation_phrases = {
+        "confirmo",
+        "confirmá",
+        "confirmar",
+        "aprobado",
+        "aproba",
+        "dale",
+        "hacelo",
+        "ejecutalo",
+        "si, ejecuta",
+        "si ejecuta",
     }
 
     def evaluate(self, route: str, user_message: str) -> GuardianDecision:
         text = user_message.lower()
-        matched = sorted(keyword for keyword in self._sensitive_keywords if keyword in text)
+        matched = sorted(
+            keyword for keyword in self._confirmation_required_keywords if keyword in text
+        )
         if not matched:
             return GuardianDecision(
                 approved=True,
@@ -37,12 +48,22 @@ class Guardian:
                 rationale="No se detectaron acciones sensibles.",
             )
 
+        if any(phrase in text for phrase in self._confirmation_phrases):
+            return GuardianDecision(
+                approved=True,
+                requires_confirmation=True,
+                rationale=(
+                    f"Accion sensible detectada para la ruta '{route}', "
+                    "pero el mensaje ya trae confirmacion explicita."
+                ),
+            )
+
         return GuardianDecision(
-            approved=True,
+            approved=False,
             requires_confirmation=True,
             rationale=(
-                "Se detecto una accion sensible para la ruta "
-                f"'{route}': {', '.join(matched)}. Requiere confirmacion humana antes de ejecutar cambios irreversibles."
+                "Detecte una accion sensible en la ruta "
+                f"'{route}' ({', '.join(matched)}). "
+                "Antes de ejecutar cambios irreversibles necesito una confirmacion explicita."
             ),
         )
-
