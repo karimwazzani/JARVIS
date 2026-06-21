@@ -531,13 +531,13 @@ export async function setSystemMode(modo: string) {
   }
 }
 
-export async function sendWebPanelMessage(message: string, chatId = "web-panel") {
+export async function sendWebPanelMessage(message: string, chatId = "web-panel", preferredAgent?: string) {
   try {
     const backendUrl = process.env.NEXT_PUBLIC_JARVIS_BACKEND_URL || "https://jarvis-backend-7hh7.onrender.com";
     const response = await fetch(`${backendUrl}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chatId, message }),
+      body: JSON.stringify({ chatId, message, preferredAgent }),
       cache: "no-store",
     });
 

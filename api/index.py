@@ -65,7 +65,7 @@ def registrar_evento(chat_id: str, evento: str) -> None:
         db.close()
 
 
-def process_text_message(chat_id, text):
+def process_text_message(chat_id, text, preferred_agent=None):
     ensure_db()
 
     from src.core.orchestrator import run_jarvis_turn
@@ -73,15 +73,15 @@ def process_text_message(chat_id, text):
 
     store_conversation_message(str(chat_id), "user", text)
     history = fetch_conversation_history(str(chat_id), limit=20)
-    response_text, _ = run_jarvis_turn(history, str(chat_id))
+    response_text, _ = run_jarvis_turn(history, str(chat_id), preferred_agent=preferred_agent)
     store_conversation_message(str(chat_id), "assistant", response_text)
     return response_text
 
 
-def handle_chat_turn(chat_id, text):
+def handle_chat_turn(chat_id, text, preferred_agent=None):
     print(f"DEBUG: Chat={chat_id}, Texto='{text[:80]}'", flush=True)
     registrar_evento(str(chat_id), f"Texto: {text}")
-    response = process_text_message(chat_id, text)
+    response = process_text_message(chat_id, text, preferred_agent=preferred_agent)
     return response
 
 
@@ -196,8 +196,16 @@ def web_chat():
         if not text:
             return {"ok": False, "error": "Message is required."}, 400
 
-        response = handle_chat_turn(chat_id, text)
-        return {"ok": True, "chatId": chat_id, "message": text, "response": response}, 200
+        preferred_agent = payload.get("preferredAgent")
+
+        response = handle_chat_turn(chat_id, text, preferred_agent=preferred_agent)
+        return {
+            "ok": True,
+            "chatId": chat_id,
+            "message": text,
+            "preferredAgent": preferred_agent,
+            "response": response,
+        }, 200
     except Exception as exc:
         print(f"ERROR WEB CHAT:\n{traceback.format_exc()}", flush=True)
         return {"ok": False, "error": str(exc)[:200]}, 500

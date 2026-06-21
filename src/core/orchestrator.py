@@ -12,9 +12,14 @@ class JarvisOrchestrator:
         self.guardian = Guardian()
         self.registry = get_agent_registry()
 
-    def handle(self, history: list[dict[str, str]], chat_id: str) -> tuple[str, list[dict[str, str]]]:
+    def handle(
+        self,
+        history: list[dict[str, str]],
+        chat_id: str,
+        preferred_agent: str | None = None,
+    ) -> tuple[str, list[dict[str, str]]]:
         context = self.memory_keeper.build_context(history=history, chat_id=chat_id)
-        selected_agent = self._select_agent(context.user_message)
+        selected_agent = self._select_agent(context.user_message, preferred_agent)
         decision = self.guardian.evaluate(selected_agent.agent_id, context.user_message)
 
         if decision.requires_confirmation and not decision.approved:
@@ -42,7 +47,9 @@ class JarvisOrchestrator:
         )
         return response, updated_history
 
-    def _select_agent(self, user_message: str):
+    def _select_agent(self, user_message: str, preferred_agent: str | None = None):
+        if preferred_agent and preferred_agent in self.registry:
+            return self.registry[preferred_agent]
         scored = sorted(
             ((agent.score(user_message), agent) for agent in AGENTS if agent.agent_id != "jarvis_orchestrator"),
             key=lambda item: item[0],
@@ -71,5 +78,9 @@ class JarvisOrchestrator:
 _runtime = JarvisOrchestrator()
 
 
-def run_jarvis_turn(history: list[dict[str, str]], chat_id: str) -> tuple[str, list[dict[str, str]]]:
-    return _runtime.handle(history=history, chat_id=chat_id)
+def run_jarvis_turn(
+    history: list[dict[str, str]],
+    chat_id: str,
+    preferred_agent: str | None = None,
+) -> tuple[str, list[dict[str, str]]]:
+    return _runtime.handle(history=history, chat_id=chat_id, preferred_agent=preferred_agent)
